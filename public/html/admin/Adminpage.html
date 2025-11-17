@@ -1,0 +1,260 @@
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin | File Tracking System</title>
+  <link rel="icon" type="image/png" href="/images/SAFWA-R Logo.png">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div>
+      <img src="/images/SAFWA-R Logo.png" alt="Logo" class="w-20 mx-auto mb-8">
+      <h1 class="text-xl font-bold mb-6 flex items-center gap-2">Admin | File Tracker</h1>
+      <nav class="flex flex-col gap-3">
+        <a href="Adminpage.html" class="nav-active">Folder</a>
+        <a href="file_list.html" class="nav-link">List of file</a>
+        <a href="departments.html" class="nav-link"> Departments</a>
+        <a href="locations.html" class="nav-link"> Locations</a>
+        <a href="users.html" class="nav-link"> Users</a> 
+      </nav>
+    </div>
+
+    <button id="logoutBtn" class="logout-btn">Logout</button>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content fade-in">
+    <div class="content-wrapper max-w-7xl mx-auto w-full">
+
+      <section class="card mb-8">
+        <h2 class="section-title">Add Folder</h2>
+
+        <form id="fileForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input id="title" type="text" placeholder="Folder Title" required class="input" />
+          <input id="used_for" type="text" placeholder="Used For" class="input" />
+          <select id="departmentSelect" class="input"><option value="">Select Department</option></select>
+          <select id="locationsSelect" class="input"><option value="">Select Location</option></select>
+          <div class="col-span-2">
+              
+              
+              <div class="col-span-2">
+                  <label for="fileSelect" class="block mb-2 text-sm font-medium text-gray-900">
+                    Select Files 
+                    <span id="fileCount" class="text-gray-500 ml-1">(0 selected)</span>
+                  </label>
+
+                  <!-- Optional search box -->
+                  <input 
+                    type="text" 
+                    id="fileSearch" 
+                    placeholder="Search files..." 
+                    class="border border-gray-300 rounded-md px-2 py-1 text-sm mb-2 w-full focus:ring-blue-500 focus:border-blue-500"
+                  />
+
+                  <!-- Action buttons -->
+                  <div class="flex justify-end gap-2 mb-2">
+                    <button type="button" id="selectAllFiles" class="text-blue-600 text-sm hover:underline">
+                      Select All
+                    </button>
+                    <button type="button" id="clearFiles" class="text-gray-600 text-sm hover:underline">
+                      Clear
+                    </button>
+                  </div>
+
+                  <!-- File select -->
+                  <select 
+                    id="fileSelect" 
+                    multiple 
+                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg 
+                          focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 h-40 
+                          overflow-y-auto">
+                    <option disabled>Loading files...</option>
+                  </select>
+
+                  <p class="text-sm text-gray-500 mt-1">
+                    Hold <span class="font-semibold text-gray-700">Ctrl</span> (Windows) or 
+                    <span class="font-semibold text-gray-700">Cmd</span> (Mac) to select multiple files.
+                  </p>
+                </div>
+            </div>
+
+
+          <button type="submit" class="btn-primary col-span-2">Save Record</button>
+        </form>
+      </section>
+
+      <!-- Latest Record Display -->
+     <section class="card mb-8">
+  <h2 class="section-title">Latest Record</h2>
+
+      
+  <!-- ✅ Only this will be printed -->
+  <div id="printSection">
+    <div id="latestRecord">
+      <p class="text-gray-500 italic">Loading latest record...</p>
+    </div>
+  </div>
+
+  <!-- ✅ Print Button  -->
+  <div class="flex justify-end mt-4">
+    <button onclick="printLatestRecord()" class="bg-blue-800 text-white px-4 py-2 rounded-md hover:bg-blue-900 transition">
+      Print
+    </button>
+  </div>
+</section>
+
+  <section class="card">
+        <h2 class="section-title">All Folder</h2>
+
+          <div class="flex justify-between items-center mb-4">
+                <input
+                  type="text"
+                  id="searchInput"
+                  placeholder="Search files..."
+                  class="border border-gray-300 rounded-md px-3 py-1 text-sm w-60"
+                  onkeyup="filterTable()"
+                />
+          </div>
+
+        <div class="overflow-x-auto">
+          <table id="fileTable" class="min-w-full border border-gray-200 text-sm">
+            <thead class="bg-gray-100 text-gray-700 uppercase">
+              <tr>
+                <!-- <th class="px-3 py-2 text-left">ID</th> -->
+                <th class="px-3 py-2 text-left">Serial Number</th>
+                <th class="px-3 py-2 text-left">Folder Name</th>
+                <th class="px-3 py-2 text-left">Department</th>
+                <th class="px-3 py-2 text-left">Location</th>
+                <th class="px-3 py-2 text-center">File Inside</th>
+                <th class="px-3 py-2 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200"></tbody>
+          </table>
+        </div>
+
+        <p id="noFiles" class="text-gray-500 text-center mt-4 hidden">No folder found.</p>
+      </section>
+
+    </div>
+  </main>
+    
+
+
+
+    <!-- ✅ Edit Folder Modal -->
+<div id="editModal" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center">
+  <div class="bg-white p-6 rounded-lg shadow-lg w-96 max-h-[90vh] overflow-y-auto">
+    <h3 class="text-lg font-bold mb-4 text-center">Edit Folder</h3>
+
+    <label class="block text-sm font-medium mb-1">Folder Name</label>
+    <input id="editFolderName" type="text" placeholder="Folder Name"
+      class="border border-gray-300 rounded-md px-3 py-2 w-full mb-3" />
+
+    <label class="block text-sm font-medium mb-1">Department</label>
+    <select id="editDepartmentSelect" class="border border-gray-300 rounded-md px-3 py-2 w-full mb-3">
+      <option value="">Loading departments...</option>
+    </select>
+
+    <label class="block text-sm font-medium mb-1">Location</label>
+    <select id="editLocationSelect" class="border border-gray-300 rounded-md px-3 py-2 w-full mb-3">
+      <option value="">Loading locations...</option>
+    </select>
+
+    <label class="block text-sm font-medium mb-1">Files Inside</label>
+    <select id="editFileSelect" multiple
+      class="border border-gray-300 rounded-md px-3 py-2 w-full h-32 overflow-y-auto mb-4">
+      <option value="">Loading files...</option>
+    </select>
+
+    <div class="flex justify-end gap-3">
+      <button onclick="closeEditModal()" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition">
+        Cancel
+      </button>
+      <button onclick="saveFolderChanges()" class="bg-blue-700 text-white px-4 py-2 rounded-md hover:bg-blue-800 transition">
+        Save Changes
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!--  view Folder Modal -->
+<div id="viewModal" 
+     class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-200">
+  <div id="viewModalContent"
+       class="bg-white rounded-2xl shadow-2xl w-[90%] sm:w-[450px] p-6 transform transition-all duration-300 translate-y-10 opacity-0">
+
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-bold text-gray-800">Folder Details</h2>
+      <button onclick="closeViewModal()" 
+              class="text-gray-400 hover:text-gray-600 transition text-lg">✖</button>
+    </div>
+
+    <!-- QR Code Section -->
+    <div class="flex flex-col items-center mb-5">
+      <img id="viewQr" src="" alt="QR Code" class="w-40 h-40 border rounded-lg shadow-sm mb-2" />
+      <div class="flex gap-3">
+        <button onclick="downloadQrCode()"
+                id="downloadQrBtn"
+                class="bg-blue-700 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-800 transition flex items-center gap-2">
+          Download QR
+        </button>
+
+        <button onclick="printFolderDetails()"
+                id="printFolderBtn"
+                class="bg-green-700 text-white px-3 py-1 rounded-md text-sm hover:bg-green-800 transition flex items-center gap-2">
+          Print
+        </button>
+      </div>
+    </div>
+
+    <!-- Folder Info -->
+    <div class="space-y-2 text-gray-800 text-sm">
+      <p><strong>Folder Name:</strong> <span id="viewFolderName">-</span></p>
+      <p><strong>Department:</strong> <span id="viewDepartment">-</span></p>
+      <p><strong>Location:</strong> <span id="viewLocation">-</span></p>
+      <p><strong>Created By:</strong> <span id="viewCreatedBy">-</span></p>
+      <p><strong>Created At:</strong> <span id="viewCreatedAt">-</span></p>
+      <p><strong>Serial Number:</strong> <span id="viewSerial">-</span></p>
+    </div>
+
+    <!-- Files -->
+    <div class="mt-4">
+      <h3 class="font-semibold mb-1 text-gray-700">Files Inside:</h3>
+      <ul id="viewFiles" class="list-disc list-inside text-gray-600 text-sm space-y-1">
+        <li>No files</li>
+      </ul>
+    </div>
+
+    <!-- Close Button -->
+    <div class="flex justify-end mt-6">
+      <button onclick="closeViewModal()" 
+              class="px-5 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 transition">
+        Close
+      </button>
+    </div>
+
+  </div>
+</div>
+
+
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 space-y-2"></div>
+    <script src="/js/admin/Adminpage.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+

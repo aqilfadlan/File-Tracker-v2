@@ -1,0 +1,408 @@
+/* ================================
+   🌟 GENERAL LAYOUT STYLING
+================================== */
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #f9fafb;
+  color: #1f2937;
+  margin: 0;
+}
+
+/* Sidebar */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 240px;
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2rem 1.25rem;
+}
+
+.sidebar img {
+  width: 80px;
+  border-radius: 10px;
+}
+
+.nav-link,
+.nav-active {
+  display: block;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  transition: background 0.2s ease-in-out;
+  font-weight: 500;
+  text-decoration: none;
+  color: #cbd5e1;
+}
+
+.nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: white;
+}
+
+.nav-active {
+  background-color: #2563eb;
+  color: white;
+}
+
+.logout-btn {
+  background-color: #dc2626;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.logout-btn:hover {
+  background-color: #b91c1c;
+}
+
+/* Main content */
+.main-content {
+  margin-left: 260px;
+  padding: 2rem;
+  transition: all 0.3s ease;
+}
+
+.content-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Card Sections */
+.card {
+  background-color: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: transform 0.15s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+.section-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #1e293b;
+}
+
+/* ================================
+   🌟 FORM ELEMENTS
+================================== */
+.input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s ease-in-out;
+}
+
+.input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.btn-primary {
+  background-color: #2563eb;
+  color: white;
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: background 0.2s ease-in-out;
+}
+
+.btn-primary:hover {
+  background-color: #1d4ed8;
+}
+
+/* ================================
+   🌟 TABLE STYLES
+================================== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+th, td {
+  padding: 0.75rem;
+  text-align: left;
+}
+
+thead {
+  background-color: #f1f5f9;
+  font-weight: 600;
+}
+
+tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+/* ================================
+   🌟 MODAL STYLES (Edit + View)
+================================== */
+/* ============================= */
+/* 🧱 UNIVERSAL MODAL STYLING    */
+/* ============================= */
+#editModal,
+#viewModal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(3px);
+  background-color: rgba(0, 0, 0, 0.55);
+  z-index: 99999;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+/* === ACTIVE STATE === */
+#editModal.show,
+#viewModal.show {
+  display: flex !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+/* === MODAL CONTENT BOX === */
+#editModal > div,
+#viewModal > div {
+  background: white;
+  width: 500px;
+  max-width: 90%;
+  border-radius: 16px;
+  padding: 1.75rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  transform: translateY(25px);
+  opacity: 0;
+  transition: all 0.3s ease;
+  pointer-events: auto;
+}
+
+/* === ANIMATION IN === */
+#editModal.show > div,
+#viewModal.show > div {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* === HEADER === */
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.modal-header h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.modal-header button {
+  background: transparent;
+  font-size: 1.2rem;
+  color: #9ca3af;
+  cursor: pointer;
+  border: none;
+  transition: color 0.2s;
+}
+
+.modal-header button:hover {
+  color: #4b5563;
+}
+
+/* === FOOTER BUTTONS === */
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+.modal-btn {
+  padding: 0.5rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.modal-btn.save {
+  background-color: #2563eb;
+  color: white;
+}
+
+.modal-btn.save:hover {
+  background-color: #1d4ed8;
+}
+
+.modal-btn.cancel {
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.modal-btn.cancel:hover {
+  background-color: #d1d5db;
+}
+
+
+
+/* ================================
+   🌟 TOAST NOTIFICATIONS
+================================== */
+.toast {
+  transition: all 0.3s ease-in-out;
+  opacity: 1;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slideIn {
+  animation: slideIn 0.4s ease forwards;
+}
+
+/* ================================
+   🌟 PRINT STYLING
+================================== */
+@media print {
+  body {
+    background: white;
+  }
+
+  .sidebar,
+  .logout-btn,
+  .btn-primary,
+  #searchInput,
+  .toast,
+  #viewModal,
+  #editModal {
+    display: none !important;
+  }
+
+  .card {
+    box-shadow: none;
+  }
+
+  table {
+    border: 1px solid #ccc;
+  }
+}
+
+/* ================================
+   🌟 UTILITY CLASSES
+================================== */
+.fade-in {
+  animation: fadeIn 0.5s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hidden {
+  display: none !important;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-gray-500 {
+  color: #6b7280;
+}
+
+.rounded {
+  border-radius: 8px;
+}
+
+.shadow-md {
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.w-full { width: 100%; }
+
+/* ================================
+   🌟 VIEW MODAL DETAILS
+================================== */
+.view-list {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+
+.view-label {
+  font-weight: 600;
+  color: #374151;
+}
+
+
+/* ================================
+   🌟 Button
+================================== */
+.btn-action {
+  padding: 0.375rem 1rem; /* py-1.5 px-4 */
+  border-radius: 0.375rem; /* rounded-md */
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+  color: #ffffff; /* text-white */
+  transition: background 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+.btn-view {
+  background-color: #2563eb; /* blue-600 */
+  color: #ffffff;
+}
+.btn-view:hover {
+  background-color: #1d4ed8; /* blue-700 */
+}
+
+.btn-edit {
+  background-color: #4b5563; /* gray-600 */
+  color: #ffffff;
+}
+.btn-edit:hover {
+  background-color: #374151; /* gray-700 */
+}
+
+.btn-delete {
+  background-color: #dc2626; /* red-600 */
+  color: #ffffff;
+}
+.btn-delete:hover {
+  background-color: #b91c1c; /* red-700 */
+}
+
+
+#fileSelect {
+  background: linear-gradient(white, white) padding-box,
+              linear-gradient(to bottom, rgba(0, 0, 0, 0.05), transparent 10%) border-box;
+  border: 1px solid rgba(209, 213, 219, 1);
+  box-shadow: inset 0 4px 6px rgba(0, 0, 0, 0.05);
+}
