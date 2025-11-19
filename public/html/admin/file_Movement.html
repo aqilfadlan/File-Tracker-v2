@@ -44,11 +44,11 @@
           <table id="movementTable" class="min-w-full border border-gray-200 text-sm">
             <thead class="bg-gray-100 text-gray-700 uppercase">
               <tr>
-                <th class="px-3 py-2 text-left">ID</th>
-                <th class="px-3 py-2 text-left">Requested By</th>
-                <th class="px-3 py-2 text-left">Move Type</th>
-                <th class="px-3 py-2 text-left">Date</th>
-                <th class="px-3 py-2 text-left">Files</th>
+                <th class="px-3 py-2 text-center">ID</th>
+                <th class="px-3 py-2 text-center">Requested By</th>
+                <th class="px-3 py-2 text-center">Move Type</th>
+                <th class="px-3 py-2 text-center">Date</th>
+                <th class="px-3 py-2 text-center">Files</th>
                 <th class="px-3 py-2 text-center">Actions</th>
               </tr>
             </thead>
@@ -61,6 +61,43 @@
         </p>
 
       </section>
+
+      <section class="card">
+        <h2 class="section-title">All File Movement</h2>
+        
+          <div class="flex justify-between items-center mb-4">
+                <input
+                  type="text"
+                  id="searchInput"
+                  placeholder="Search files..."
+                  class="border border-gray-300 rounded-md px-3 py-1 text-sm w-60"
+                  onkeyup="filterTable()"
+                />
+          </div>
+
+        <div class="overflow-x-auto">
+          <table id="fileTable" class="min-w-full border border-gray-200 text-sm">
+            <thead class="bg-gray-100 text-gray-700 uppercase">
+              <tr>
+                <th class="px-3 py-2 text-center">Movement ID </th>
+                <th class="px-3 py-2 text-center">Movement Type </th>
+                <th class="px-3 py-2 text-center">Request Date</th>
+                <th class="px-3 py-2 text-center">Request By</th>
+                <th class="px-3 py-2 text-center">Approved By</th>
+                <th class="px-3 py-2 text-center">Approved Date</th>
+                <th class="px-3 py-2 text-center">Taken Date</th>
+                <th class="px-3 py-2 text-center">Return Date</th>
+                <th class="px-3 py-2 text-center">Remarks</th>
+                <th class="px-3 py-2 text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200"></tbody>
+          </table>
+        </div>
+
+        <p id="noFiles" class="text-gray-500 text-center mt-4 hidden">No files found.</p>
+      </section>
+
     </div>
   </main>
 

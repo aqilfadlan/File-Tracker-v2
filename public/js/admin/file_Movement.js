@@ -5,7 +5,7 @@ let currentMoveId = null;
 // -------------------------------
 document.addEventListener("DOMContentLoaded", () => {
   loadRequests();
-
+  loadFileMovements();
   document.getElementById("searchInput")?.addEventListener("keyup", filterTable);
   document.getElementById("logoutBtn")?.addEventListener("click", () => {
     if (confirm("Logout?")) fetch("/api/auth/logout").then(() => location.href = "/login.html");
@@ -129,4 +129,47 @@ function showToast(message, type = "success") {
   toast.textContent = message;
   container.appendChild(toast);
   setTimeout(() => toast.remove(), 3000);
+}
+
+async function loadFileMovements() {
+  try {
+    const res = await fetch("/api/file_movement", { credentials: "include" });
+    const movements = await res.json();
+
+    renderTable(movements);
+  } catch (err) {
+    console.error("Error loading movements:", err);
+  }
+}
+
+
+function renderTable(movements) {
+  const tbody = document.querySelector("#fileTable tbody");
+  const noFiles = document.querySelector("#noFiles");
+
+  tbody.innerHTML = "";
+
+  if (!movements.length) {
+    noFiles.classList.remove("hidden");
+    return;
+  }
+
+  noFiles.classList.add("hidden");
+
+  movements.forEach((r) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="border px-4 py-2 text-center">${r.move_id}</td>
+      <td class="border px-4 py-2">${r.move_type || "-"}</td>
+      <td class="border px-4 py-2">${r.move_date ? new Date(r.move_date).toLocaleString() : "-"}</td>
+      <td class="border px-4 py-2">${r.user_name || "-"}</td>
+      <td class="border px-4 py-2">${r.approved_by_name|| "-"}</td>
+      <td class="border px-4 py-2">${r.approved_at ? new Date(r.move_date).toLocaleString() : "-"}</td>
+      <td class="border px-4 py-2">${r.taken_at || "-"}</td>
+      <td class="border px-4 py-2">${r.return_at || "-"}</td>
+      <td class="border px-4 py-2">${r.remark || "-"}</td>
+      <td class="border px-4 py-2">${r.status_name || "-"}</td>
+    `;
+    tbody.appendChild(tr);
+  });
 }

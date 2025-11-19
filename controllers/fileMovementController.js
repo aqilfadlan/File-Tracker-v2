@@ -194,14 +194,19 @@ exports.getPendingMovements = async (req, res) => {
 exports.getFileMovements = async (req, res) => {
   try {
     const [rows] = await db1.query(`
-      SELECT fm.*, u.usr_name AS user_name, s.status_name
+      SELECT 
+        fm.*,
+        u.usr_name AS user_name,               -- requested by
+        a.usr_name AS approved_by_name,        -- approver name added
+        s.status_name
       FROM file_movement fm
       LEFT JOIN infracit_sharedb.users u ON u.user_id = fm.user_id
+      LEFT JOIN infracit_sharedb.users a ON a.user_id = fm.approve_by  -- join approver
       LEFT JOIN status s ON s.status_id = fm.status_id
       ORDER BY fm.move_id DESC
     `);
 
-    // Get files for each movement
+    // Fetch files
     for (const r of rows) {
       const [files] = await db1.query(`
         SELECT f.file_id, f.file_name
@@ -210,7 +215,7 @@ exports.getFileMovements = async (req, res) => {
         WHERE m.move_id = ?
       `, [r.move_id]);
 
-      r.files = files;  // add file list to output
+      r.files = files;
     }
 
     res.json(rows);
@@ -220,6 +225,7 @@ exports.getFileMovements = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 // ====================================
 // 📌 Get File Movement by ID

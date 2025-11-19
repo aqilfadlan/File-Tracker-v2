@@ -48,7 +48,7 @@ function renderTable(locations) {
       <td class="border px-4 py-2">${loc.location_name}</td>
       <td class="flex gap-2 justify-center py-2">
         <button 
-          onclick='openEditModal(${JSON.stringify(loc)})' 
+          onclick='openEditModal(${loc.location_id})' 
           class="bg-gray-500 hover:bg-gray-400 text-white px-3 py-1 rounded-md text-sm font-medium transition">
           Edit
         </button>
@@ -63,15 +63,19 @@ function renderTable(locations) {
 }
 
 // ✅ Open Edit Modal
-function openEditModal(location) {
+function openEditModal(locationId) {
+  const location = locations.find(x => x.location_id === locationId);
+  if (!location) return alert("Location not found");
+
   editId = location.location_id;
   document.getElementById("editLoct").value = location.location_name;
-  document.getElementById("editModal").classList.remove("hidden");
+
+  document.getElementById("editModal").classList.add("show");  
 }
 
 // ✅ Close Edit Modal
 function closeEditModal() {
-  document.getElementById("editModal").classList.add("hidden");
+  document.getElementById("editModal").classList.remove("show"); // ❗ remove show
 }
 
 // ✅ Update location
