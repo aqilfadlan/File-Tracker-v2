@@ -8,13 +8,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const usr_email = document.getElementById("usr_email").value.trim();
     const usr_pwd = document.getElementById("usr_pwd").value.trim();
 
-    // Validate inputs
     if (!usr_email || !usr_pwd) {
       errorMessage.textContent = "Email and password are required.";
       return;
     }
 
-    // Clear previous error messages
     errorMessage.textContent = "";
 
     try {
@@ -32,10 +30,9 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Redirect based on user role
       const role = data.user?.role;
-<<<<<<< HEAD
 
+      // 🎯 CLEAN, CORRECT REDIRECT BLOCK
       if (role === "super_admin") {
         window.location.href = "/html/super_admin/super_admin.html";
       } else if (role === "admin") {
@@ -44,13 +41,8 @@ document.addEventListener("DOMContentLoaded", () => {
         window.location.href = "/html/HR/hr.html";
       } else if (role === "staff") {
         window.location.href = "/html/staff/staff.html";
-=======
-      if (role === "super_admin" || role === "admin") {
-        window.location.href = "/html/admin/Adminpage.html";
->>>>>>> 3d84e66d12b04fb5b2397d84ff2ae64029dc490f
       } else {
-        // Default fallback for unknown roles
-        window.location.href = "/html/staff/staff.html";
+        window.location.href = "/html/staff/staff.html"; // fallback safety
       }
 
     } catch (err) {

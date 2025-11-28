@@ -203,24 +203,17 @@ exports.getFileMovements = async (req, res) => {
         a.usr_name AS approved_by_name,        -- approver name added
         s.status_name
       FROM file_movement fm
-<<<<<<< HEAD
       LEFT JOIN infracit_sharedb.users u ON u.user_id = fm.user_id 
-=======
-      LEFT JOIN infracit_sharedb.users u ON u.user_id = fm.user_id
       LEFT JOIN infracit_sharedb.users a ON a.user_id = fm.approve_by  -- join approver
->>>>>>> 3d84e66d12b04fb5b2397d84ff2ae64029dc490f
       LEFT JOIN status s ON s.status_id = fm.status_id
       ORDER BY fm.move_id DESC
     `);
 
-<<<<<<< HEAD
     console.log("📊 Query returned rows:", rows.length);
     console.log("📄 First row:", rows[0]);
 
     // Get files for each movement
-=======
     // Fetch files
->>>>>>> 3d84e66d12b04fb5b2397d84ff2ae64029dc490f
     for (const r of rows) {
       const [files] = await db1.query(`
         SELECT f.file_id, f.file_name
@@ -229,10 +222,7 @@ exports.getFileMovements = async (req, res) => {
         WHERE m.move_id = ?
       `, [r.move_id]);
 
-<<<<<<< HEAD
       console.log(`📎 Files for move_id ${r.move_id}:`, files.length);
-=======
->>>>>>> 3d84e66d12b04fb5b2397d84ff2ae64029dc490f
       r.files = files;
     }
 
@@ -333,13 +323,12 @@ exports.deleteFileMovement = async (req, res) => {
 
 
 exports.approveMovement = async (req, res) => {
-<<<<<<< HEAD
-const user = req.session.user;
+
 
 if (!user || user.role !== "admin") {
     return res.status(403).json({ message: "Forbidden" });
 }
-=======
+
   const user = requireSession(req, res);
   if (!user) return;
 
@@ -364,7 +353,6 @@ exports.rejectMovement = async (req, res) => {
   if (!["super_admin", "admin"].includes(user.role)) {
     return res.status(403).json({ error: "Only admin can reject" });
   }
->>>>>>> 3d84e66d12b04fb5b2397d84ff2ae64029dc490f
 
   const { move_id } = req.params;
   const [result] = await db1.query(
@@ -392,7 +380,6 @@ if (!user || user.role !== "admin") {
   res.json({ success: true, message: "Rejected" });
 };
 
-<<<<<<< HEAD
 
 
 
@@ -477,7 +464,6 @@ exports.returnFile = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
-=======
 exports.takeOutFile = async (req, res) => {
   const user = requireSession(req, res);
   if (!user) return;
@@ -514,4 +500,3 @@ exports.returnFile = async (req, res) => {
   if (result.affectedRows === 0) return res.status(404).json({ error: "Not found" });
   res.json({ success: true, message: "File returned" });
 };
->>>>>>> 3d84e66d12b04fb5b2397d84ff2ae64029dc490f

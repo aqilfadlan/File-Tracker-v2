@@ -23,7 +23,7 @@ exports.getAllFiles = async (req, res) => {
         ) AS files
         
       FROM file_movement fm
-      LEFT JOIN users u ON u.id = fm.user_id
+      LEFT JOIN infracit_sharedb.users u ON u.id = fm.user_id
       LEFT JOIN users a ON a.id = fm.approved_by
       LEFT JOIN file_movement_files f ON f.move_id = fm.move_id
       
