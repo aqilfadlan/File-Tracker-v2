@@ -6,6 +6,7 @@
   <link rel="icon" type="image/png" href="/Images/SAFWA-R Logo.png">
   <link rel="stylesheet" href="/styles.css">
   <script src="https://cdn.tailwindcss.com"></script>
+
 </head>
 
 <body class="bg-gray-50 text-gray-800">
@@ -17,12 +18,12 @@
   <aside class="sidebar">
     <div>
       <img src="/images/SAFWA-R Logo.png" alt="Logo" class="w-20 mx-auto mb-8">
-      <h1 class="text-xl font-bold mb-6 flex items-center gap-2">Admin Panel | File Tracker</h1>
+      <h1 class="text-xl font-bold mb-6 flex items-center gap-2">Super Admin Panel || File Tracker</h1>
       <nav class="flex flex-col gap-3">
-        <a href="admin.html" class="nav-link">Folders & Files</a>
-        <a href="activityLog.html" class="nav-link">Activity Logs</a>
-                <a href="history.html" class="nav-link">History</a>
-        <a href="locations.html" class="nav-actives">Cabinet Request</a>
+        <a href="super_admin.html" class="nav-link">Folders & Files</a>
+        <a href="super_log.html" class="nav-link">Activity Logs</a>
+                <a href="super_history.html" class="nav-link">History</a>
+        <a href="super_locations.html" class="nav-active">Cabinet Request</a>
 
       </nav>
     </div>
@@ -30,7 +31,8 @@
   </aside>
 
 
-
+    <button id="logoutBtn" class="logout-btn">Logout</button>
+  </aside>
 
   <!-- Main Content -->
   <main class="main-content fade-in">
@@ -202,7 +204,7 @@
   </div>
 
   <!-- Load the JS -->
-  <script src="/js/locations.js"></script>
+  <script src="/js/super_locations.js"></script>
 
   <style>
     /* Toast Animation */

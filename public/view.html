@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Folder Details</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    h1 { color: #333; }
+    ul { list-style: none; padding: 0; }
+    li { margin: 5px 0; }
+  </style>
+</head>
+<body>
+  <h1 id="folderName">Folder Name</h1>
+  <p><strong>Serial Number:</strong> <span id="serialNum"></span></p>
+  <p><strong>Department:</strong> <span id="department"></span></p>
+  <p><strong>Location:</strong> <span id="location"></span></p>
+  <p><strong>Created By:</strong> <span id="createdBy"></span></p>
+  <p><strong>Files:</strong></p>
+  <ul id="fileList"></ul>
+
+  <script>
+    const folderId = window.location.pathname.split("/").pop();
+
+    fetch(`/api/folder/${folderId}`)
+      .then(res => res.json())
+      .then(folder => {
+        document.getElementById("folderName").innerText = folder.folder_name;
+        document.getElementById("serialNum").innerText = folder.serial_num;
+        document.getElementById("department").innerText = folder.department;
+        document.getElementById("location").innerText = folder.location_name;
+        document.getElementById("createdBy").innerText = folder.created_by;
+
+        const fileList = document.getElementById("fileList");
+        folder.files_inside.forEach(f => {
+          const li = document.createElement("li");
+          li.textContent = f.file_name;
+          fileList.appendChild(li);
+        });
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Failed to load folder details");
+      });
+  </script>
+</body>
+</html>

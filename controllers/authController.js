@@ -11,18 +11,17 @@ exports.login = async (req, res) => {
 
   try {
     // 🔹 Fetch user and join with userlevels
-    const [rows] = await db2.query(
-      `
+    const [rows] = await db2.query(`
       SELECT 
         u.*, 
-        l.userlevelname 
+        l.userlevelname,
+        d.department AS department_name
       FROM users u
       LEFT JOIN userlevels l ON u.userlevel = l.userlevelid
+      LEFT JOIN tref_department d ON u.usr_dept = d.department_id
       WHERE u.usr_email = ?
       LIMIT 1
-      `,
-      [usr_email]
-    );
+    `, [usr_email]);
 
     if (rows.length === 0) {
       console.log("❌ No user found for email:", usr_email);
@@ -44,8 +43,10 @@ exports.login = async (req, res) => {
 
     // 🔹 Determine role based on userlevel
     let role = "user";
-    if ([18, 37,-1].includes(user.userlevel)) role = "super_admin"; // -1 add back as super_admin
-    else if ([13, 14, 17, 35].includes(user.userlevel)) role = "admin";
+    if ([37,18].includes(user.userlevel)) role = "super_admin";
+    else if ([2].includes(user.userlevel)) role = "admin";
+    else if ([-1,1].includes(user.userlevel)) role = "staff";
+    else if ([13].includes(user.userlevel)) role = "HR";
 
     // 🔹 Save session info
     req.session.user = {
@@ -78,4 +79,22 @@ exports.logout = (req, res) => {
     res.clearCookie("connect.sid");
     res.json({ message: "✅ Logged out successfully" });
   });
+};
+
+// ✅ GET CURRENT USER
+exports.getCurrentUser = (req, res) => {
+  if (req.session && req.session.user) {
+    return res.json({
+      user_id: req.session.user.id,
+      name: req.session.user.name,
+      email: req.session.user.email,
+      role: req.session.user.role,
+      level: req.session.user.level,
+      levelname: req.session.user.levelname,
+      dept: req.session.user.dept,
+      areaoffice: req.session.user.areaoffice
+    });
+  }
+  
+  return res.status(401).json({ error: 'Not authenticated' });
 };

@@ -142,7 +142,7 @@ async function approveRequest() {
   if (!currentMoveId || !confirm("Approve this request?")) return;
 
   try {
-    const res = await fetch(`/api/file_movement/approve/${currentMoveId}`, { method: "PUT" });
+    const res = await fetch(`/api/file_movement/Approved/${currentMoveId}`, { method: "PUT" });
     const data = await res.json();
 
     if (data.success) {

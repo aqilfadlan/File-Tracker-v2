@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>History | File Tracking System</title>
+  <link rel="icon" type="image/png" href="/Images/SAFWA-R Logo.png">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+
+</head>
+
+<body class="bg-gray-50 text-gray-800">
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div>
+      <img src="/images/SAFWA-R Logo.png" alt="Logo" class="w-20 mx-auto mb-8">
+      <h1 class="text-xl font-bold mb-6 flex items-center gap-2">Super Admin Panel || File Tracker</h1>
+      <nav class="flex flex-col gap-3">
+        <a href="super_admin.html" class="nav-link">Folders & Files</a>
+        <a href="super_log.html" class="nav-link">Activity Logs</a>
+        <a href="super_history.html" class="nav-active">History</a>
+        <a href="super_locations.html" class="nav-link">Cabinet Request</a>
+      </nav>
+    </div>
+    <button id="logoutBtn" class="logout-btn">Logout</button>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content fade-in">
+    <div class="content-wrapper max-w-7xl mx-auto w-full">
+
+      <!-- Page Header -->
+      <section class="card mb-8">
+        <div>
+          <h2 class="section-title">File Movement History</h2>
+          <p class="text-gray-600 text-sm">Complete history of all folder movements - taken out and returned files</p>
+        </div>
+      </section>
+
+      <!-- Stats Section -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div class="card p-4 bg-blue-50 border-l-4 border-blue-500">
+          <p class="text-blue-700 text-sm font-semibold">Total Movements</p>
+          <p id="statTotal" class="text-2xl font-bold text-blue-900">0</p>
+        </div>
+        <div class="card p-4 bg-green-50 border-l-4 border-green-500">
+          <p class="text-green-700 text-sm font-semibold">Currently Out</p>
+          <p id="statCurrentlyOut" class="text-2xl font-bold text-green-900">0</p>
+        </div>
+        <div class="card p-4 bg-gray-50 border-l-4 border-gray-500">
+          <p class="text-gray-700 text-sm font-semibold">Returned</p>
+          <p id="statReturned" class="text-2xl font-bold text-gray-900">0</p>
+        </div>
+        <div class="card p-4 bg-purple-50 border-l-4 border-purple-500">
+          <p class="text-purple-700 text-sm font-semibold">This Month</p>
+          <p id="statThisMonth" class="text-2xl font-bold text-purple-900">0</p>
+        </div>
+      </div>
+
+      <!-- Filter Section -->
+      <section class="card mb-8">
+        <h3 class="font-semibold mb-4 text-gray-700">Filter History</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+            <select id="filterDepartment" class="input w-full">
+              <option value="">All Departments</option>
+              <option value="HR">Human Resources</option>
+              <option value="Finance">Finance</option>
+              <option value="IT">IT</option>
+              <option value="Legal">Legal</option>
+              <option value="Operations">Operations</option>
+              <option value="Marketing">Marketing</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select id="filterStatus" class="input w-full">
+              <option value="">All Status</option>
+              <option value="out">Currently Out</option>
+              <option value="returned">Returned</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Move Type</label>
+            <select id="filterMoveType" class="input w-full">
+              <option value="">All Types</option>
+              <option value="1">Temporary</option>
+              <option value="2">Permanent</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Date From</label>
+            <input id="filterDateFrom" type="date" class="input w-full" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Date To</label>
+            <input id="filterDateTo" type="date" class="input w-full" />
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+            <input id="searchHistory" type="text" placeholder="Folder name, requester..." class="input w-full" />
+          </div>
+        </div>
+        
+        <div class="flex flex-wrap gap-3">
+          <button id="filterBtn" class="btn-primary">Apply Filter</button>
+          <button id="resetBtn" class="btn-secondary">Reset</button>
+          <button id="exportBtn" class="btn-secondary">Export to CSV</button>
+        </div>
+      </section>
+
+      <!-- History Table -->
+      <section class="card">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="section-title">Movement History</h2>
+          <div class="text-sm text-gray-600">
+            Showing <span id="showingCount">0</span> of <span id="totalCount">0</span> records
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table id="historyTable" class="min-w-full text-sm">
+            <thead class="bg-gray-100 text-gray-700 uppercase text-xs">
+              <tr>
+                <th class="px-4 py-3 text-center">Move ID</th>
+                <th class="px-4 py-3 text-left">Folder Name</th>
+                <th class="px-4 py-3 text-left">Department</th>
+                <th class="px-4 py-3 text-left">Move Type</th>
+                <th class="px-4 py-3 text-left">Requested By</th>
+                <th class="px-4 py-3 text-left">Approved By</th>
+                <th class="px-4 py-3 text-left">Taken Out</th>
+                <th class="px-4 py-3 text-left">Taken By</th>
+                <th class="px-4 py-3 text-left">Returned</th>
+                <th class="px-4 py-3 text-left">Returned By</th>
+                <th class="px-4 py-3 text-center">Duration</th>
+                <th class="px-4 py-3 text-center">Status</th>
+                <th class="px-4 py-3 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody" class="divide-y divide-gray-200">
+              <!-- Data will be loaded dynamically -->
+            </tbody>
+          </table>
+        </div>
+
+        <p id="noHistory" class="text-gray-500 text-center mt-4 hidden">No history records found.</p>
+
+        <!-- Pagination -->
+        <div id="pagination" class="flex justify-between items-center mt-6 pt-4 border-t">
+          <div class="text-sm text-gray-600">
+            <label for="rowsPerPage" class="mr-2">Rows per page:</label>
+            <select id="rowsPerPage" class="input py-1 px-2">
+              <option value="10">10</option>
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+          <div class="flex gap-2">
+            <button id="prevPage" class="btn-secondary px-3 py-1 text-sm">Previous</button>
+            <span id="pageInfo" class="px-4 py-1 text-sm text-gray-700">Page 1 of 1</span>
+            <button id="nextPage" class="btn-secondary px-3 py-1 text-sm">Next</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- History Details Modal -->
+      <div id="historyModal" class="modal hidden">
+        <div class="modal-content">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold">Movement Details</h3>
+            <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+          </div>
+          <div id="modalBody">
+            <!-- History details will be loaded here -->
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Load the history.js -->
+  <script src="/js/super_history.js"></script>
+
+</body>
+</html>

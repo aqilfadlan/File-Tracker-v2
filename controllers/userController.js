@@ -23,3 +23,14 @@ exports.getAllUsers = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch users" });
   }
 };
+
+
+
+exports.getMe = (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  res.json(req.session.user);
+};
+

@@ -1,6 +1,7 @@
 // controllers/fileMovementController.js
 const { db1, db2 } = require("../db");
 
+
 /* -----------------------------------------------------------
    Helper: Check Session
 ----------------------------------------------------------- */
@@ -193,13 +194,18 @@ exports.getPendingMovements = async (req, res) => {
 // ====================================
 exports.getFileMovements = async (req, res) => {
   try {
+    console.log("🔍 getFileMovements called");
+    
     const [rows] = await db1.query(`
       SELECT fm.*, u.usr_name AS user_name, s.status_name
       FROM file_movement fm
-      LEFT JOIN infracit_sharedb.users u ON u.user_id = fm.user_id
+      LEFT JOIN infracit_sharedb.users u ON u.user_id = fm.user_id 
       LEFT JOIN status s ON s.status_id = fm.status_id
       ORDER BY fm.move_id DESC
     `);
+
+    console.log("📊 Query returned rows:", rows.length);
+    console.log("📄 First row:", rows[0]);
 
     // Get files for each movement
     for (const r of rows) {
@@ -210,14 +216,17 @@ exports.getFileMovements = async (req, res) => {
         WHERE m.move_id = ?
       `, [r.move_id]);
 
-      r.files = files;  // add file list to output
+      console.log(`📎 Files for move_id ${r.move_id}:`, files.length);
+      r.files = files;
     }
 
+    console.log("✅ Sending response with", rows.length, "movements");
     res.json(rows);
 
   } catch (error) {
-    console.error("Error loading file movements:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("💥 Error in getFileMovements:", error);
+    console.error("💥 Error stack:", error.stack);
+    res.status(500).json({ error: "Internal server error", details: error.message });
   }
 };
 
@@ -264,7 +273,7 @@ exports.updateFileMovement = async (req, res) => {
     const { move_id } = req.params;
     const { file_id, from_department, to_department, moved_by } = req.body;
 
-    const [result] = await db.query(
+    const [result] = await db1.query(
       `UPDATE file_movements 
        SET file_id = ?, from_department = ?, to_department = ?, moved_by = ?
        WHERE move_id = ?`,
@@ -289,7 +298,7 @@ exports.deleteFileMovement = async (req, res) => {
   try {
     const { move_id } = req.params;
 
-    const [result] = await db.query(
+    const [result] = await db1.query(
       "DELETE FROM file_movements WHERE move_id = ?",
       [move_id]
     );
@@ -307,23 +316,11 @@ exports.deleteFileMovement = async (req, res) => {
 
 
 exports.approveMovement = async (req, res) => {
-  const user = requireSession(req, res);
-  if (!user) return;
-  if (user.level !== 1) return res.status(403).json({ error: "Only admin can approve" });
+const user = req.session.user;
 
-  const { move_id } = req.params;
-  const [result] = await db1.query(
-    "UPDATE file_movement SET status_id=2, approve_by=?, approved_at=NOW() WHERE move_id=?",
-    [user.id, move_id]
-  );
-  if (result.affectedRows === 0) return res.status(404).json({ error: "Not found" });
-  res.json({ success: true, message: "Approved" });
-};
-
-exports.rejectMovement = async (req, res) => {
-  const user = requireSession(req, res);
-  if (!user) return;
-  if (user.level !== 1) return res.status(403).json({ error: "Only admin can reject" });
+if (!user || user.role !== "admin") {
+    return res.status(403).json({ message: "Forbidden" });
+}
 
   const { move_id } = req.params;
   const [result] = await db1.query(
@@ -331,8 +328,106 @@ exports.rejectMovement = async (req, res) => {
     [user.id, move_id]
   );
   if (result.affectedRows === 0) return res.status(404).json({ error: "Not found" });
+  res.json({ success: true, message: "Approved" });
+};
+
+exports.rejectMovement = async (req, res) => {
+const user = req.session.user;
+
+if (!user || user.role !== "admin") {
+    return res.status(403).json({ message: "Forbidden" });
+}
+
+  const { move_id } = req.params;
+  const [result] = await db1.query(
+    "UPDATE file_movement SET status_id=2, approve_by=?, approved_at=NOW() WHERE move_id=?",
+    [user.id, move_id]
+  );
+  if (result.affectedRows === 0) return res.status(404).json({ error: "Not found" });
   res.json({ success: true, message: "Rejected" });
 };
 
-exports.takeOutFile = async (req, res) => { /* your existing code */ };
-exports.returnFile = async (req, res) => { /* your existing code */ };
+
+
+
+exports.takeOutFile = async (req, res) => {
+  const user = req.session.user;
+
+  if (!user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  try {
+    const { move_id } = req.params;
+    
+    // Check if movement exists and is approved
+    const [check] = await db1.query(
+      "SELECT status_id FROM file_movement WHERE move_id = ?",
+      [move_id]
+    );
+
+    if (check.length === 0) {
+      return res.status(404).json({ error: "Movement not found" });
+    }
+
+    if (check[0].status_id !== 3) {
+      return res.status(400).json({ error: "Only approved requests can be marked as taken out" });
+    }
+
+    // Update to status 5 (Take Out)
+    const [result] = await db1.query(
+      "UPDATE file_movement SET status_id=5, taken_at=NOW() WHERE move_id=?",
+      [move_id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    res.json({ success: true, message: "File marked as taken out successfully" });
+  } catch (err) {
+    console.error("takeOutFile error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.returnFile = async (req, res) => {
+  const user = req.session.user;
+
+  if (!user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  try {
+    const { move_id } = req.params;
+    
+    // Check if movement exists and is taken out
+    const [check] = await db1.query(
+      "SELECT status_id FROM file_movement WHERE move_id = ?",
+      [move_id]
+    );
+
+    if (check.length === 0) {
+      return res.status(404).json({ error: "Movement not found" });
+    }
+
+    if (check[0].status_id !== 5) {
+      return res.status(400).json({ error: "Only taken out files can be returned" });
+    }
+
+    // Update to status 4 (Return)
+    const [result] = await db1.query(
+      "UPDATE file_movement SET status_id=4, return_at=NOW() WHERE move_id=?",
+      [move_id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    res.json({ success: true, message: "File returned successfully" });
+  } catch (err) {
+    console.error("returnFile error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};

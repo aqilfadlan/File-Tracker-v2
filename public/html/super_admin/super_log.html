@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activity Log | File Tracking System</title>
+    <link rel="stylesheet" href="/styles.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+
+</head>
+
+<body class="bg-gray-50 text-gray-800">
+
+  <!-- Toast Container -->
+  <div id="toastContainer"></div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div>
+      <img src="/images/SAFWA-R Logo.png" alt="Logo" class="w-20 mx-auto mb-8">
+      <h1 class="text-xl font-bold mb-6 flex items-center gap-2">Super Admin Panel || File Tracker</h1>
+      <nav class="flex flex-col gap-3">
+        <a href="super_admin.html" class="nav-link">Folders & Files</a>
+        <a href="super_log.html" class="nav-active">Activity Logs</a>
+        <a href="super_history.html" class="nav-link">History</a>
+        <a href="super_locations.html" class="nav-link">Cabinet Request</a>
+      </nav>
+    </div>
+    <button id="logoutBtn" class="logout-btn">Logout</button>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content fade-in">
+    <div class="max-w-7xl mx-auto w-full">
+
+      <!-- Page Header -->
+      <section class="card mb-8">
+        <div>
+          <h2 class="section-title">File Movement Activity Log</h2>
+          <p class="text-gray-600 text-sm">Monitor and manage all file movement requests</p>
+        </div>
+      </section>
+
+      <!-- Stats Section -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        <div class="card p-4 bg-yellow-50 border-l-4 border-yellow-500">
+          <p class="text-yellow-700 text-sm font-semibold">Pending</p>
+          <p id="statPending" class="text-2xl font-bold text-yellow-900">0</p>
+        </div>
+        <div class="card p-4 bg-blue-50 border-l-4 border-blue-500">
+          <p class="text-blue-700 text-sm font-semibold">Approved</p>
+          <p id="statApproved" class="text-2xl font-bold text-blue-900">0</p>
+        </div>
+        <div class="card p-4 bg-red-50 border-l-4 border-red-500">
+          <p class="text-red-700 text-sm font-semibold">Rejected</p>
+          <p id="statRejected" class="text-2xl font-bold text-red-900">0</p>
+        </div>
+        <div class="card p-4 bg-green-50 border-l-4 border-green-500">
+          <p class="text-green-700 text-sm font-semibold">Taken Out</p>
+          <p id="statTakenOut" class="text-2xl font-bold text-green-900">0</p>
+        </div>
+        <div class="card p-4 bg-gray-50 border-l-4 border-gray-500">
+          <p class="text-gray-700 text-sm font-semibold">Available</p>
+          <p id="statAvailable" class="text-2xl font-bold text-gray-900">0</p>
+        </div>
+      </div>
+
+      <!-- Filter Section -->
+      <section class="card mb-8">
+        <h3 class="font-semibold mb-4 text-gray-700">Filter Requests</h3>
+        <div class="flex flex-wrap gap-4">
+          <select id="filterStatus" class="input w-full sm:w-52">
+            <option value="">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected (Available)</option>
+            <option value="taken-out">Taken Out (Unavailable)</option>
+            <option value="available">Returned (Available)</option>
+          </select>
+
+          <input id="filterDate" type="date" class="input w-full sm:w-52" />
+          
+          <input id="searchRequest" type="text" placeholder="Search by file name..." class="input w-full sm:w-64" />
+          
+          <button id="filterBtn" class="btn-primary">Apply Filter</button>
+          <button id="resetBtn" class="btn-secondary">Reset</button>
+        </div>
+      </section>
+
+      <!-- Activity Log Table -->
+      <section class="card">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="section-title">Activity Log</h2>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table id="requestTable" class="min-w-full text-sm">
+            <thead class="bg-gray-100 text-gray-700 uppercase text-xs">
+              <tr>
+                <th class="px-4 py-3 text-center">Move ID</th>
+                <th class="px-4 py-3 text-left">File Name</th>
+                <th class="px-4 py-3 text-left">Requested By</th>
+                <th class="px-4 py-3 text-left">Request Date</th>
+                <th class="px-4 py-3 text-left">Approved By</th>
+                <th class="px-4 py-3 text-center">Status</th>
+                <th class="px-4 py-3 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="requestTableBody" class="divide-y divide-gray-200">
+              <!-- Data will be loaded dynamically -->
+            </tbody>
+          </table>
+        </div>
+
+        <p id="noRequests" class="text-gray-500 text-center mt-4 hidden">No requests found.</p>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Reject Modal -->
+  <div id="rejectModal" class="modal">
+    <div class="modal-content">
+      <h3 class="text-xl font-bold mb-4">Reject Request</h3>
+      <p class="text-gray-600 mb-4">Please provide a reason for rejection:</p>
+      <textarea id="rejectReason" class="input w-full h-24 mb-4" placeholder="Enter reason..."></textarea>
+      <div class="flex gap-3 justify-end">
+        <button id="cancelReject" class="btn-secondary">Cancel</button>
+        <button id="confirmReject" class="btn-danger">Confirm Reject</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Mock data - replace with actual API calls
+    // Data structure matches database:
+    // move_id, file_id (to get file name), user_id (to get username), move_date (datetime), status_id
+    // approved_by (admin user_id), approved_at (datetime)
+    let requests = [
+      {
+        move_id: 1,
+        file_id: 101,
+        fileName: "Employee Contract - John Doe.pdf", // from file_id lookup
+        user_id: 5,
+        requestedBy: "Sarah Wilson", // from user_id lookup
+        move_date: "2024-01-15 09:30:00",
+        status_id: 1, // 1=pending, 2=rejected, 3=approved, 4=taken-out, 5=available
+        status: "pending",
+        approved_by: null,
+        approvedBy: null,
+        approved_at: null
+      },
+      {
+        move_id: 2,
+        file_id: 102,
+        fileName: "Project Proposal Q1 2024.docx",
+        user_id: 8,
+        requestedBy: "Mike Johnson",
+        move_date: "2024-01-14 14:15:00",
+        status_id: 3,
+        status: "approved",
+        approved_by: 1,
+        approvedBy: "Admin User", // from approved_by user_id lookup
+        approved_at: "2024-01-14 15:30:00"
+      },
+      {
+        move_id: 3,
+        file_id: 103,
+        fileName: "Financial Report 2023.xlsx",
+        user_id: 12,
+        requestedBy: "Emily Davis",
+        move_date: "2024-01-13 11:20:00",
+        status_id: 4,
+        status: "taken-out",
+        approved_by: 1,
+        approvedBy: "Admin User",
+        approved_at: "2024-01-13 12:00:00"
+      },
+      {
+        move_id: 4,
+        file_id: 104,
+        fileName: "Marketing Strategy.pdf",
+        user_id: 6,
+        requestedBy: "Tom Brown",
+        move_date: "2024-01-12 10:45:00",
+        status_id: 2,
+        status: "rejected",
+        approved_by: null,
+        approvedBy: null,
+        approved_at: null
+      },
+      {
+        move_id: 5,
+        file_id: 105,
+        fileName: "HR Policy Manual.pdf",
+        user_id: 9,
+        requestedBy: "Lisa Anderson",
+        move_date: "2024-01-11 16:30:00",
+        status_id: 5,
+        status: "available",
+        approved_by: 1,
+        approvedBy: "Admin User",
+        approved_at: "2024-01-11 17:00:00"
+      }
+    ];
+
+    let currentRequestId = null;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      loadRequests();
+      updateStats();
+      setupEventListeners();
+    });
+
+    function setupEventListeners() {
+      document.getElementById('filterBtn').addEventListener('click', applyFilters);
+      document.getElementById('resetBtn').addEventListener('click', resetFilters);
+      document.getElementById('searchRequest').addEventListener('input', applyFilters);
+      document.getElementById('logoutBtn').addEventListener('click', logout);
+      document.getElementById('cancelReject').addEventListener('click', closeRejectModal);
+      document.getElementById('confirmReject').addEventListener('click', confirmReject);
+    }
+
+    function loadRequests(filteredRequests = null) {
+      const tbody = document.getElementById('requestTableBody');
+      const noRequests = document.getElementById('noRequests');
+      const data = filteredRequests || requests;
+
+      tbody.innerHTML = '';
+
+      if (data.length === 0) {
+        noRequests.classList.remove('hidden');
+        return;
+      }
+
+      noRequests.classList.add('hidden');
+
+      data.forEach(request => {
+        const row = createRequestRow(request);
+        tbody.appendChild(row);
+      });
+    }
+
+    function createRequestRow(request) {
+      const tr = document.createElement('tr');
+      
+      // Add yellow highlight for pending requests
+      if (request.status === 'pending') {
+        tr.classList.add('row-pending');
+      }
+      
+      tr.innerHTML = `
+        <td class="px-4 py-3 text-center font-semibold">#${request.move_id}</td>
+        <td class="px-4 py-3">${request.fileName}</td>
+        <td class="px-4 py-3">${request.requestedBy}</td>
+        <td class="px-4 py-3">${formatDateTime(request.move_date)}</td>
+        <td class="px-4 py-3">${request.approvedBy || '<span class="text-gray-400">-</span>'}</td>
+        <td class="px-4 py-3 text-center">${getStatusBadge(request)}</td>
+        <td class="px-4 py-3 text-center">${getActionButtons(request)}</td>
+      `;
+
+      return tr;
+    }
+
+    function getStatusBadge(request) {
+      const status = request.status;
+      let badge = '';
+      
+      if (status === 'pending') {
+        badge = '<span class="status-badge status-pending">Pending</span>';
+      } else if (status === 'approved') {
+        badge = `
+          <div class="flex flex-col items-center gap-1">
+            <span class="status-badge status-approved">Approved</span>
+            <span class="text-xs text-gray-500">${formatDateTime(request.approved_at)}</span>
+          </div>
+        `;
+      } else if (status === 'rejected') {
+        badge = '<span class="status-badge status-rejected">Rejected (Available)</span>';
+      } else if (status === 'taken-out') {
+        badge = `
+          <div class="flex flex-col items-center gap-1">
+            <span class="status-badge status-taken-out">Taken Out (Unavailable)</span>
+            <span class="text-xs text-gray-500">Approved: ${formatDateTime(request.approved_at)}</span>
+          </div>
+        `;
+      } else if (status === 'available') {
+        badge = `
+          <div class="flex flex-col items-center gap-1">
+            <span class="status-badge status-available">Returned (Available)</span>
+            <span class="text-xs text-gray-500">Approved: ${formatDateTime(request.approved_at)}</span>
+          </div>
+        `;
+      }
+      
+      return badge;
+    }
+
+    function getActionButtons(request) {
+      const buttons = {
+        'pending': `
+          <button onclick="approveRequest(${request.move_id})" class="btn-success mr-2">Approve</button>
+          <button onclick="openRejectModal(${request.move_id})" class="btn-danger">Reject</button>
+        `,
+        'approved': `
+          <button onclick="takeOut(${request.move_id})" class="btn-info">Mark as Taken Out</button>
+        `,
+        'rejected': `
+          <span class="text-gray-500 text-xs">File Available</span>
+        `,
+        'taken-out': `
+          <button onclick="returnFile(${request.move_id})" class="btn-warning">Return File</button>
+        `,
+        'available': `
+          <span class="text-gray-500 text-xs">File Available</span>
+        `
+      };
+      return buttons[request.status] || '';
+    }
+
+    function approveRequest(move_id) {
+      const request = requests.find(r => r.move_id === move_id);
+      if (request) {
+        const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
+        request.status = 'approved';
+        request.status_id = 3;
+        request.approved_by = 1; // Current admin user_id
+        request.approvedBy = "Current Admin"; // Get from session/login
+        request.approved_at = currentDateTime;
+        loadRequests();
+        updateStats();
+        showToast('Request approved successfully!', 'success');
+      }
+    }
+
+    function openRejectModal(move_id) {
+      currentRequestId = move_id;
+      document.getElementById('rejectModal').classList.add('active');
+    }
+
+    function closeRejectModal() {
+      currentRequestId = null;
+      document.getElementById('rejectReason').value = '';
+      document.getElementById('rejectModal').classList.remove('active');
+    }
+
+    function confirmReject() {
+      const reason = document.getElementById('rejectReason').value.trim();
+      if (!reason) {
+        showToast('Please provide a reason for rejection', 'error');
+        return;
+      }
+
+      const request = requests.find(r => r.move_id === currentRequestId);
+      if (request) {
+        request.status = 'rejected';
+        request.status_id = 2;
+        request.move_date = new Date().toISOString().replace('T', ' ').substring(0, 19);
+        request.rejectionReason = reason;
+        loadRequests();
+        updateStats();
+        showToast('Request rejected. File is now available.', 'success');
+        closeRejectModal();
+      }
+    }
+
+    function takeOut(move_id) {
+      const request = requests.find(r => r.move_id === move_id);
+      if (request) {
+        request.status = 'taken-out';
+        request.status_id = 4;
+        request.move_date = new Date().toISOString().replace('T', ' ').substring(0, 19);
+        loadRequests();
+        updateStats();
+        showToast('File marked as taken out (unavailable)', 'success');
+      }
+    }
+
+    function returnFile(move_id) {
+      const request = requests.find(r => r.move_id === move_id);
+      if (request) {
+        request.status = 'available';
+        request.status_id = 5;
+        request.move_date = new Date().toISOString().replace('T', ' ').substring(0, 19);
+        loadRequests();
+        updateStats();
+        showToast('File returned and is now available', 'success');
+      }
+    }
+
+    function updateStats() {
+      document.getElementById('statPending').textContent = requests.filter(r => r.status === 'pending').length;
+      document.getElementById('statApproved').textContent = requests.filter(r => r.status === 'approved').length;
+      document.getElementById('statRejected').textContent = requests.filter(r => r.status === 'rejected').length;
+      document.getElementById('statTakenOut').textContent = requests.filter(r => r.status === 'taken-out').length;
+      document.getElementById('statAvailable').textContent = requests.filter(r => r.status === 'available').length;
+    }
+
+    function applyFilters() {
+      const statusFilter = document.getElementById('filterStatus').value;
+      const dateFilter = document.getElementById('filterDate').value;
+      const searchFilter = document.getElementById('searchRequest').value.toLowerCase();
+
+      let filtered = requests;
+
+      if (statusFilter) {
+        filtered = filtered.filter(r => r.status === statusFilter);
+      }
+
+      if (dateFilter) {
+        filtered = filtered.filter(r => r.move_date.startsWith(dateFilter));
+      }
+
+      if (searchFilter) {
+        filtered = filtered.filter(r => 
+          r.fileName.toLowerCase().includes(searchFilter) ||
+          r.requestedBy.toLowerCase().includes(searchFilter)
+        );
+      }
+
+      loadRequests(filtered);
+    }
+
+    function resetFilters() {
+      document.getElementById('filterStatus').value = '';
+      document.getElementById('filterDate').value = '';
+      document.getElementById('searchRequest').value = '';
+      loadRequests();
+    }
+
+    function formatDateTime(dateTimeString) {
+      const date = new Date(dateTimeString);
+      return date.toLocaleString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      
+      const icon = type === 'success' ? '✓' : '✕';
+      const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+      
+      toast.innerHTML = `
+        <div class="${bgColor} text-white w-8 h-8 rounded-full flex items-center justify-center font-bold">
+          ${icon}
+        </div>
+        <span class="font-medium">${message}</span>
+      `;
+      
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.animation = 'slideIn 0.3s ease-out reverse';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    function logout() {
+      if (confirm('Are you sure you want to logout?')) {
+        showToast('Logging out...', 'success');
+        setTimeout(() => {
+          window.location.href = 'login.html';
+        }, 1000);
+      }
+    }
+  </script>
+
+</body>
+</html>

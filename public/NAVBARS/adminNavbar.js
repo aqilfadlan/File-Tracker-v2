@@ -3,7 +3,7 @@ function loadNavbar() {
   const navbarHTML = `
     <aside class="sidebar">
       <div class="sidebar-header">
-        <img src="/Images/SAFWA-R Logo.png" alt="Logo" class="sidebar-logo">
+        
         <h1 class="sidebar-title">
           <span class="icon">📁</span>
           Admin Panel

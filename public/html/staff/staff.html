@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Staff Panel || File Tracking System</title>
+  <link rel="icon" type="image/png" href="/images/SAFWA-R Logo.png">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+
+  
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+ <!-- Sidebar -->
+  <aside class="sidebar">
+    <div>
+      <img src="/images/SAFWA-R Logo.png" alt="Logo" class="w-20 mx-auto mb-8">
+      <h1 class="text-xl font-bold mb-6 flex items-center gap-2">Staff Panel</h1>
+      <nav class="flex flex-col gap-3">
+        <a href="staff.html" class="nav-active">Folders & Files</a>
+        <a href="staff_log.html" class="nav-link">Activity Logs</a>
+        <a href="request.html" class="nav-link">Request</a>
+        <a href="staff_locations.html" class="nav-link">Cabinet Request</a>
+      </nav>
+    </div>
+    <button id="logoutBtn" class="logout-btn">Logout</button>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content fade-in">
+    <div class="content-wrapper max-w-7xl mx-auto w-full">
+
+      <!-- Page Header with Department Info -->
+      <div class="mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h1 class="text-3xl font-bold text-navy mb-2">Department Files & Folders</h1>
+            <p class="text-gray-600">Manage folders and files for your department</p>
+          </div>
+          <div class="text-right">
+            <p class="text-sm text-gray-600 mb-1">Your Department:</p>
+            <div class="dept-badge">
+              <span>🏢</span>
+              <span id="userDepartmentDisplay">Loading...</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Info Banner -->
+        <div class="info-banner">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">ℹ️</span>
+            <div>
+              <p class="font-semibold mb-1">Department Restricted Access</p>
+              <p class="text-sm opacity-90">You can only view, create, and edit folders/files within your department. All new items are automatically assigned to your department.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Registration Type Selection -->
+      <section class="card mb-6">
+        <h2 class="section-title text-center">Registration Management</h2>
+        <div class="flex gap-4 justify-center">
+          <button id="registerFolderBtn" class="btn-navy px-8 py-4 rounded-lg transition font-semibold shadow-md hover-card">
+            📁 Register Folder
+          </button>
+          <button id="registerFileBtn" class="bg-gray-600 text-white px-8 py-4 rounded-lg hover:bg-gray-700 transition font-semibold shadow-md hover-card">
+            📄 Register File
+          </button>
+        </div>
+      </section>
+
+      <!-- Register Folder Form (Initially Hidden) -->
+      <section id="folderFormSection" class="card mb-6 hidden">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="section-title">Register New Folder</h2>
+        </div>
+
+        <form id="folderForm" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Serial Number (Auto-generated, read-only) -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Serial Number</label>
+              <input id="folderSerial" type="text" readonly 
+                class="w-full px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-600" 
+                placeholder="Auto-generated" />
+            </div>
+
+            <!-- Folder Title -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Folder Title *</label>
+              <input id="folderTitle" type="text" required
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-transparent" 
+                placeholder="Enter folder name" />
+            </div>
+
+            <!-- Department (Auto-assigned, read-only) -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Department</label>
+              <input id="folderDepartment" type="text" readonly
+                class="w-full px-4 py-2 bg-blue-50 border border-blue-300 rounded-lg text-navy font-semibold" 
+                placeholder="Your department" />
+              <p class="text-xs text-gray-500 mt-1">✓ Automatically assigned to your department</p>
+            </div>
+
+            <!-- Location -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Location *</label>
+              <select id="folderLocationsSelect" required
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-transparent">
+                <option value="">Select Location</option>
+              </select>
+            </div>
+
+            <!-- Used For -->
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Used For (Optional)</label>
+              <textarea id="folderUsedFor" rows="2"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-transparent" 
+                placeholder="Describe the purpose of this folder"></textarea>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-3 pt-4">
+            <button type="button" id="cancelFolderBtn" 
+              class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+              Cancel
+            </button>
+            <button type="submit" class="btn-navy px-6 py-2 rounded-lg transition">
+              💾 Save Folder
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Register File Form (Initially Hidden) -->
+      <section id="fileFormSection" class="card mb-6 hidden">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="section-title">📄 Register New File</h2>
+        </div>
+
+        <form id="fileForm" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- File Name -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">File Name *</label>
+              <input id="fileName" type="text" required
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-transparent" 
+                placeholder="Enter file name" />
+            </div>
+
+            <!-- Select Folder (Department-filtered) -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Assign to Folder *</label>
+              <select id="fileFolderSelect" required
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-transparent">
+                <option value="">Select Folder</option>
+              </select>
+              <p class="text-xs text-gray-500 mt-1">Only folders from your department are shown</p>
+            </div>
+
+            <!-- Department (Auto-filled based on folder) -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Department</label>
+              <input id="fileDepartment" type="text" readonly
+                class="w-full px-4 py-2 bg-blue-50 border border-blue-300 rounded-lg text-navy font-semibold" 
+                placeholder="Auto-filled from folder" />
+            </div>
+
+            <!-- Location (Auto-filled based on folder) -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
+              <input id="fileLocation" type="text" readonly
+                class="w-full px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-600" 
+                placeholder="Auto-filled from folder" />
+            </div>
+
+            <!-- Description -->
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Description (Optional)</label>
+              <textarea id="fileDescription" rows="2"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-transparent" 
+                placeholder="Add any additional notes"></textarea>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-3 pt-4">
+            <button type="button" id="cancelFileBtn" 
+              class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+              Cancel
+            </button>
+            <button type="submit" class="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition">
+              💾 Save File
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Search & Filters Section -->
+      <section class="card mb-6">
+        <h2 class="section-title mb-6">🔍 Search Your Department's Files</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mb-6">
+          <!-- Search Input -->
+          <div class="md:col-span-7">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+            <div class="relative">
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="Search by folder name or serial number..."
+                class="w-full px-4 py-2.5 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-transparent transition"
+              />
+              <button id="searchBtn" class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-navy text-white rounded-md hover:bg-blue-900 transition text-sm">
+                Search
+              </button>
+            </div>
+          </div>
+
+          <!-- Location Filter -->
+          <div class="md:col-span-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
+            <select id="locationFilter" 
+              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-900 focus:border-transparent transition">
+              <option value="">All Locations</option>
+            </select>
+          </div>
+
+          <!-- Reset Button -->
+          <div class="md:col-span-1 flex items-end">
+            <button id="resetFiltersBtn" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm font-medium" title="Reset filters">
+              Reset
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Filters Display -->
+        <div id="activeFilters" class="hidden">
+          <div class="flex items-center gap-2 mb-3 pb-4 border-b border-gray-200">
+            <span class="text-sm font-medium text-gray-700">Active Filters:</span>
+            <div id="filterChips" class="flex flex-wrap gap-2"></div>
+          </div>
+        </div>
+
+        <!-- Results Summary -->
+        <div class="flex items-center justify-between">
+          <p id="resultsCount" class="text-sm text-gray-600">
+            Showing <span class="font-semibold text-navy">0</span> folders from your department
+          </p>
+          
+          <!-- Export/Actions -->
+          <div class="flex gap-2">
+            <button id="exportCSVBtn" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm font-medium flex items-center gap-2">
+              📥 Export CSV
+            </button>
+            <button id="printTableBtn" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm font-medium flex items-center gap-2">
+              🖨️ Print
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- All Folders Table -->
+      <section class="card">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="section-title">Department Folders</h2>
+          
+          <!-- Sort Options -->
+          <div class="flex items-center gap-3">
+            <label class="text-sm font-medium text-gray-700">Sort by:</label>
+            <select id="sortBy" 
+              class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-900 focus:border-transparent">
+              <option value="created_desc">Newest First</option>
+              <option value="created_asc">Oldest First</option>
+              <option value="name_asc">Name (A-Z)</option>
+              <option value="name_desc">Name (Z-A)</option>
+              <option value="files_desc">Most Files</option>
+              <option value="files_asc">Least Files</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto rounded-lg border border-gray-200">
+          <div class="max-h-[600px] overflow-y-auto custom-scrollbar">
+            <table id="fileTable" class="min-w-full">
+              <thead class="bg-gradient-to-r from-blue-900 to-blue-800 text-white sticky-header">
+                <tr>
+                  <th class="px-4 py-3 text-left font-semibold">Serial Number</th>
+                  <th class="px-4 py-3 text-left font-semibold">Folder Name</th>
+                  <th class="px-4 py-3 text-left font-semibold">Location</th>
+                  <th class="px-4 py-3 text-center font-semibold">Files Count</th>
+                  <th class="px-4 py-3 text-center font-semibold" style="min-width: 150px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200 bg-white" id="foldersTableBody">
+                <!-- Data will be populated here by JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <p id="noFiles" class="text-gray-500 text-center mt-6 hidden">
+          <span class="text-4xl mb-2 block">📭</span>
+          No records found in your department.
+        </p>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- View Folder Modal -->
+  <div id="viewModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="modal-content bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      
+      <!-- Print Area -->
+      <div class="print-area p-8">
+        <!-- Header -->
+        <div class="flex justify-between items-start mb-6 no-print">
+          <h2 class="text-2xl font-bold text-navy">📁 Folder Details</h2>
+          <button id="closeViewModalBtn" class="text-gray-400 hover:text-gray-600 transition text-2xl">×</button>
+        </div>
+
+        <!-- QR and Barcode Section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <!-- QR Code -->
+          <div class="flex flex-col items-center">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3">QR Code</h3>
+            <div class="border-4 border-navy rounded-xl p-4 bg-white shadow-lg">
+              <img id="viewQr" src="" alt="QR Code" class="w-48 h-48" />
+            </div>
+          </div>
+
+          <!-- Barcode -->
+          <div class="flex flex-col items-center">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3">Barcode</h3>
+            <div class="border-4 border-navy rounded-xl p-4 bg-white shadow-lg">
+              <svg id="viewBarcode"></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-3 justify-center mb-8 no-print">
+          <button id="downloadQrBtn" class="btn-navy px-4 py-2 rounded-lg transition flex items-center gap-2 shadow-md">
+            📥 Download QR
+          </button>
+          <button id="downloadBarcodeBtn" class="btn-navy px-4 py-2 rounded-lg transition flex items-center gap-2 shadow-md">
+            📥 Download Barcode
+          </button>
+          <button id="printDetailsBtn" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition flex items-center gap-2 shadow-md">
+            🖨️ Print
+          </button>
+        </div>
+
+        <!-- Folder Information Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div class="space-y-4">
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Serial Number</p>
+              <p id="viewSerial" class="text-lg font-bold text-navy">-</p>
+            </div>
+            
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Folder Name</p>
+              <p id="viewFolderName" class="text-lg font-semibold text-gray-800">-</p>
+            </div>
+
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Department</p>
+              <p id="viewDepartment" class="text-base text-gray-700">-</p>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Location</p>
+              <p id="viewLocation" class="text-base text-gray-700">-</p>
+            </div>
+
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Created By</p>
+              <p id="viewCreatedBy" class="text-base text-gray-700">-</p>
+            </div>
+
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <p class="text-xs text-gray-500 uppercase font-semibold mb-1">Created At</p>
+              <p id="viewCreatedAt" class="text-base text-gray-700">-</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Used For Section (if available) -->
+        <div id="viewUsedForSection" class="bg-blue-50 p-6 rounded-xl mb-6 border border-blue-200 hidden">
+          <h3 class="font-bold text-gray-800 mb-2 flex items-center gap-2">
+            <span class="text-navy">📝</span> Purpose
+          </h3>
+          <p id="viewUsedFor" class="text-gray-700">-</p>
+        </div>
+
+        <!-- Files Section -->
+        <div class="bg-blue-50 p-6 rounded-xl border border-blue-200">
+          <h3 class="font-bold text-gray-800 mb-4 flex items-center justify-between">
+            <span class="flex items-center gap-2">
+              <span class="text-navy">📎</span> Files Inside
+            </span>
+            <span class="badge bg-navy text-white" id="filesCount">0</span>
+          </h3>
+          <div id="viewFiles" class="space-y-2">
+            <div class="text-gray-500 italic text-center py-8">No files in this folder</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Close Button -->
+      <div class="px-8 pb-8 flex justify-end no-print">
+        <button id="closeViewModalBtn2" class="px-6 py-2 rounded-lg border-2 border-gray-300 text-gray-700 hover:bg-gray-50 transition font-semibold">
+          Close
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Edit Folder Modal -->
+  <div id="editModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="modal-content bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-8">
+      
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-2xl font-bold">Edit Folder</h3>
+<script src="/js/staff/staff.js"></script>
+</body>
+</html>

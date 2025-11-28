@@ -9,6 +9,8 @@ const userRoutes = require("./routes/user");
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
+const fileMovementRoutes = require('./routes/fileMovement');
+
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(bodyParser.json());
@@ -24,16 +26,20 @@ app.use(
     cookie: { secure: false },
   })
 );
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 
 
 // ✅ Routes
-app.use("/api", require("./routes/auth.js"));
+app.use("/api/auth", require("./routes/auth.js"));
 app.use("/api/files", require("./routes/files.js"));
 app.use("/api/departments", require("./routes/departments.js"));
 app.use("/api/folder", require("./routes/folder.js"));
-app.use("/api/file_movement", require("./routes/fileMovement.js"));
+app.use("/api/file-movements", require("./routes/fileMovement.js"));
 app.use("/api/locations", require("./routes/locations.js"));
 app.use("/api/users", userRoutes);
+
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));

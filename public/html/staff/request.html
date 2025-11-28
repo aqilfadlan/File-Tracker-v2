@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Requests | File Tracking System</title>
+  <link rel="icon" type="image/png" href="/Images/SAFWA-R Logo.png">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-50 text-gray-800">
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+ <!-- Sidebar -->
+  <aside class="sidebar">
+    <div>
+      <img src="/images/SAFWA-R Logo.png" alt="Logo" class="w-20 mx-auto mb-8">
+      <h1 class="text-xl font-bold mb-6 flex items-center gap-2">Staff Panel</h1>
+      <nav class="flex flex-col gap-3">
+        <a href="staff.html" class="nav-link">Folders & Files</a>
+        <a href="staff_log.html" class="nav-link">Activity Logs</a>
+        <a href="request.html" class="nav-active">Request</a>
+        <a href="staff_locations.html" class="nav-link">Cabinet Request</a>
+      </nav>
+    </div>
+    <button id="logoutBtn" class="logout-btn">Logout</button>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content fade-in">
+    <div class="content-wrapper max-w-6xl mx-auto w-full">
+
+      <!-- Page Header with Inbox Style -->
+      <section class="mb-6">
+        <div class="flex justify-between items-center">
+          <div style="flex: 1;">
+            <h2 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+              </svg>
+              My Inbox
+            </h2>
+            <p class="text-gray-600 text-sm mt-1">Track your file requests and notifications</p>
+          </div>
+          <button id="newRequestBtn" style="width: auto !important; flex-shrink: 0;" class="bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium inline-flex items-center gap-1.5 shadow-sm transition-all whitespace-nowrap px-3 py-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            New
+          </button>
+        </div>
+      </section>
+
+      <!-- Stats Cards - Inbox Style -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500 hover:shadow-md transition">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs text-gray-600 font-medium uppercase">Pending</p>
+              <p id="statPending" class="text-3xl font-bold text-yellow-600 mt-1">0</p>
+            </div>
+            <div class="bg-yellow-100 rounded-full p-3">
+              <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-green-500 hover:shadow-md transition">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs text-gray-600 font-medium uppercase">Approved</p>
+              <p id="statApproved" class="text-3xl font-bold text-green-600 mt-1">0</p>
+            </div>
+            <div class="bg-green-100 rounded-full p-3">
+              <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500 hover:shadow-md transition">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs text-gray-600 font-medium uppercase">Active</p>
+              <p id="statTakenOut" class="text-3xl font-bold text-blue-600 mt-1">0</p>
+            </div>
+            <div class="bg-blue-100 rounded-full p-3">
+              <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-red-500 hover:shadow-md transition">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs text-gray-600 font-medium uppercase">Rejected</p>
+              <p id="statRejected" class="text-3xl font-bold text-red-600 mt-1">0</p>
+            </div>
+            <div class="bg-red-100 rounded-full p-3">
+              <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Two Column Layout: Notifications + Requests -->
+      <div class="grid lg:grid-cols-3 gap-6">
+        
+        <!-- Notifications Panel (Left Side - 1 column) -->
+        <div class="lg:col-span-1">
+          <div class="bg-white rounded-lg shadow-md sticky top-6">
+            <div class="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-blue-600 rounded-t-lg">
+              <h3 class="font-bold text-white flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                </svg>
+                Notifications
+                <span id="notificationBadge" class="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full hidden">0</span>
+              </h3>
+            </div>
+            <div id="notificationsList" class="p-4 max-h-96 overflow-y-auto space-y-3">
+              <div class="text-center py-8 text-gray-400">
+                <svg class="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                </svg>
+                <p class="text-sm">No new notifications</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Requests List (Right Side - 2 columns) -->
+        <div class="lg:col-span-2">
+          <div class="bg-white rounded-lg shadow-md">
+            <!-- Header -->
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 class="font-bold text-gray-800 text-lg">My Requests</h3>
+              <button id="refreshBtn" class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                Refresh
+              </button>
+            </div>
+
+            <!-- Filter Bar -->
+            <div class="p-4 bg-gray-50 border-b border-gray-200">
+              <div class="flex flex-wrap gap-2">
+                <select id="filterStatus" class="text-sm border border-gray-300 rounded px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                  <option value="">All Status</option>
+                  <option value="1">Pending</option>
+                  <option value="2">Rejected</option>
+                  <option value="3">Approved</option>
+                  <option value="5">Active</option>
+                  <option value="4">Returned</option>
+                </select>
+
+                <input id="searchRequest" type="text" placeholder="🔍 Search..." class="text-sm border border-gray-300 rounded px-3 py-1.5 flex-1 min-w-[200px] focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                
+                <button id="filterBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded text-sm font-medium">Filter</button>
+                <button id="resetBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-1.5 rounded text-sm font-medium">Reset</button>
+              </div>
+            </div>
+
+            <!-- Requests List (Email-like) -->
+            <div id="requestsList" class="divide-y divide-gray-200 max-h-[600px] overflow-y-auto">
+              <!-- Requests will be loaded here -->
+            </div>
+
+            <p id="noRequests" class="text-center py-12 text-gray-400 hidden">
+              <svg class="w-16 h-16 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              <span class="block text-lg font-medium">No requests yet</span>
+              <span class="block text-sm mt-1">Create your first request to get started!</span>
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <!-- New Request Modal -->
+  <div id="newRequestModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white w-full max-w-lg rounded-lg shadow-xl relative max-h-[85vh] overflow-hidden flex flex-col">
+
+      <!-- Modal Header -->
+      <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex justify-between items-center">
+        <h2 class="text-xl font-bold text-white">New File Request</h2>
+        <button id="closeModalBtn" class="text-white hover:text-gray-200 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Modal Body - Scrollable -->
+      <div class="overflow-y-auto flex-1 p-6">
+        <form id="requestForm" class="space-y-4">
+
+          <!-- Move ID (Auto-generated, disabled) -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">
+              Move ID
+            </label>
+            <input type="text" id="moveId" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 text-gray-500" value="Auto-generated" disabled />
+          </div>
+
+          <!-- Select File -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">
+              Select File <span class="text-red-500">*</span>
+            </label>
+            <select id="fileSelect" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+              <option value="">Choose a file</option>
+            </select>
+          </div>
+
+          <!-- Folder (Auto-detected from file) -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">
+              Folder
+            </label>
+            <input type="text" id="folderName" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 text-gray-600" placeholder="Will be auto-detected" disabled />
+            <input type="hidden" id="folderId" />
+          </div>
+
+          <!-- Request Date -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">
+              Request Date <span class="text-red-500">*</span>
+            </label>
+            <input type="date" id="reqDate" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" required />
+          </div>
+
+          <!-- Request Time -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">
+              Request Time <span class="text-red-500">*</span>
+            </label>
+            <input type="time" id="reqTime" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" required />
+          </div>
+
+          <!-- Remark -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">
+              Remark
+            </label>
+            <textarea id="remark" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none" rows="3" placeholder="Additional notes..."></textarea>
+          </div>
+
+        </form>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="bg-gray-50 px-6 py-3 flex justify-end gap-2 border-t">
+        <button type="button" id="cancelBtn" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 text-sm font-medium transition-colors">
+          Cancel
+        </button>
+        <button type="submit" form="requestForm" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium transition-colors">
+          Submit Request
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Request Details Modal -->
+  <div id="detailsModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50">
+    <div class="bg-white w-full max-w-2xl p-6 rounded-xl shadow-lg relative">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold">Request Details</h3>
+        <button onclick="closeDetailsModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+      </div>
+      <div id="detailsBody"></div>
+    </div>
+  </div>
+
+<script src="/js/staff/request.js" defer></script>
+
+</body>
+</html>

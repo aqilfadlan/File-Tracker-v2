@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Request File | File Tracking System</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+
+<body>
+  <div class="container">
+    <h2>Request File</h2>
+
+    <form id="requestForm">
+      <!-- Move ID (auto-generated in DB) -->
+      <div class="form-group">
+        <label for="moveId">Move ID</label>
+        <input type="text" id="moveId" placeholder="Auto-generated" disabled />
+      </div>
+
+      <!-- Date -->
+      <div class="form-group">
+        <label for="reqDate">Date</label>
+        <input type="date" id="reqDate" required />
+      </div>
+
+      <!-- Time -->
+      <div class="form-group">
+        <label for="reqTime">Time</label>
+        <input type="time" id="reqTime" required />
+      </div>
+
+      <!-- User ID (auto-filled based on session) -->
+      <div class="form-group">
+        <label for="userId">User ID</label>
+        <input type="text" id="userId" readonly />
+      </div>
+
+      <!-- Folder selection -->
+      <div class="form-group">
+        <label for="folderId">Folder</label>
+        <select id="folderId" required></select>
+      </div>
+
+      <!-- Remark -->
+      <div class="form-group">
+        <label for="remark">Remark</label>
+        <textarea id="remark" rows="3" placeholder="Enter remark..."></textarea>
+      </div>
+
+      <button type="submit">Submit Request</button>
+    </form>
+  </div>
+
+  <script>
+    /* Auto-fill Date & Time */
+    const today = new Date();
+    document.getElementById("reqDate").value = today.toISOString().split("T")[0];
+    document.getElementById("reqTime").value = today.toTimeString().slice(0, 5);
+
+    /* Auto-fill User ID from backend session */
+    async function loadUser() {
+      const res = await fetch("/api/auth/me");
+      const data = await res.json();
+      document.getElementById("userId").value = data.user_id;
+    }
+
+    loadUser();
+
+    /* Load folder list (display name but store folder_id) */
+    async function loadFolders() {
+      const res = await fetch("/api/folder");
+      const folders = await res.json();
+
+      const dropdown = document.getElementById("folderId");
+      dropdown.innerHTML = `<option value="">Select Folder</option>`;
+
+      folders.forEach(f => {
+        const option = document.createElement("option");
+        option.value = f.folder_id;         // value submitted
+        option.textContent = f.folder_name; // what user sees
+        dropdown.appendChild(option);
+      });
+    }
+
+    loadFolders();
+
+    /* Submit request form */
+    document.getElementById("requestForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const payload = {
+        date: document.getElementById("reqDate").value,
+        time: document.getElementById("reqTime").value,
+        user_id: document.getElementById("userId").value,
+        folder_id: document.getElementById("folderId").value,
+        remark: document.getElementById("remark").value
+      };
+
+      const res = await fetch("/api/movement/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await res.json();
+      alert(result.message || "Submitted!");
+    });
+  </script>
+
+</body>
+</html>
