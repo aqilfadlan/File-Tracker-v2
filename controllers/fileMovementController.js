@@ -190,24 +190,50 @@ exports.getPendingMovements = async (req, res) => {
 
 
 // ====================================
-// 📌 Get All File Movements
+// 📌 Get All File Movements (with user filter for non-admins)
 // ====================================
 exports.getFileMovements = async (req, res) => {
   try {
     console.log("🔍 getFileMovements called");
 
-    const [rows] = await db1.query(`
-      SELECT 
-        fm.*,
-        u.usr_name AS user_name,          -- requested by
-        a.usr_name AS approved_by_name,   -- approver
-        s.status_name
-      FROM file_movement fm
-      LEFT JOIN infracit_sharedb.users u ON u.user_id = fm.user_id 
-      LEFT JOIN infracit_sharedb.users a ON a.user_id = fm.approve_by
-      LEFT JOIN status s ON s.status_id = fm.status_id
-      ORDER BY fm.move_id DESC
-    `);
+    // Get user from session (assumes you use requireSession elsewhere)
+    const user = req.session?.user;
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    let rows;
+    // Only admin/super_admin can view ALL movements
+    if (user.role === "admin" || user.role === "super_admin") {
+      // Admin: show everything
+      [rows] = await db1.query(`
+        SELECT 
+          fm.*,
+          u.usr_name AS user_name,          -- requested by
+          a.usr_name AS approved_by_name,   -- approver
+          s.status_name
+        FROM file_movement fm
+        LEFT JOIN infracit_sharedb.users u ON u.user_id = fm.user_id 
+        LEFT JOIN infracit_sharedb.users a ON a.user_id = fm.approve_by
+        LEFT JOIN status s ON s.status_id = fm.status_id
+        ORDER BY fm.move_id DESC
+      `);
+    } else {
+      // Regular user: only show their own file movements
+      [rows] = await db1.query(`
+        SELECT 
+          fm.*,
+          u.usr_name AS user_name,
+          a.usr_name AS approved_by_name,
+          s.status_name
+        FROM file_movement fm
+        LEFT JOIN infracit_sharedb.users u ON u.user_id = fm.user_id
+        LEFT JOIN infracit_sharedb.users a ON a.user_id = fm.approve_by
+        LEFT JOIN status s ON s.status_id = fm.status_id
+        WHERE fm.user_id = ?
+        ORDER BY fm.move_id DESC
+      `, [user.id]);
+    }
 
     console.log("📊 Query returned rows:", rows.length);
 
@@ -517,4 +543,92 @@ exports.returnFile = async (req, res) => {
 
   if (result.affectedRows === 0) return res.status(404).json({ error: "Not found" });
   res.json({ success: true, message: "File returned" });
+};
+
+
+
+// ====================================
+// 📌 My Request
+// ====================================
+exports.getMyRequests = async (req, res) => {
+  const user = requireSession(req, res);
+  if (!user) return;
+
+  try {
+    const [rows] = await db1.query(`
+      SELECT 
+        fm.*,
+        u.usr_name AS user_name,
+        a.usr_name AS approved_by_name,
+        s.status_name
+      FROM file_movement fm
+      LEFT JOIN infracit_sharedb.users u ON u.user_id = fm.user_id
+      LEFT JOIN infracit_sharedb.users a ON a.user_id = fm.approve_by
+      LEFT JOIN status s ON s.status_id = fm.status_id
+      WHERE fm.user_id = ?  -- Only the logged-in user's requests
+      ORDER BY fm.move_id DESC
+    `, [user.id]);
+
+    for (const r of rows) {
+      const [files] = await db1.query(`
+        SELECT f.file_id, f.file_name, fol.folder_id, fol.folder_name
+        FROM file_movement_files m
+        JOIN file f ON f.file_id = m.file_id
+        JOIN folder_files ff ON ff.file_id = f.file_id
+        JOIN folder fol ON fol.folder_id = ff.folder_id
+        WHERE m.move_id = ?
+        ORDER BY fol.folder_name, f.file_name
+      `, [r.move_id]);
+
+      r.files = files;
+    }
+
+    res.json(rows);
+
+  } catch (err) {
+    console.error("💥 Error fetching my requests:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+
+
+// ====================================
+// 📌Notifications
+// ====================================
+exports.getMyNotifications = async (req, res) => {
+  const user = requireSession(req, res);
+  if (!user) return;
+
+  try {
+    const [rows] = await db1.query(`
+      SELECT 
+        fm.*,
+        u.usr_name AS user_name
+      FROM file_movement fm
+      LEFT JOIN infracit_sharedb.users u ON u.user_id = fm.user_id
+      WHERE fm.user_id = ? AND fm.status_id IN (2, 3)  -- Only approved/rejected for this user
+      ORDER BY fm.move_date DESC
+    `, [user.id]);
+
+    for (const r of rows) {
+      const [files] = await db1.query(`
+        SELECT f.file_id, f.file_name, fol.folder_id, fol.folder_name
+        FROM file_movement_files m
+        JOIN file f ON f.file_id = m.file_id
+        JOIN folder_files ff ON ff.file_id = f.file_id
+        JOIN folder fol ON fol.folder_id = ff.folder_id
+        WHERE m.move_id = ?
+        ORDER BY fol.folder_name, f.file_name
+      `, [r.move_id]);
+
+      r.files = files;
+    }
+
+    res.json(rows);
+
+  } catch (err) {
+    console.error("💥 Error fetching notifications:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 };

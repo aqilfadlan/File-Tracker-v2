@@ -68,7 +68,7 @@ exports.createFolder = async (req, res) => {
       `INSERT INTO folder 
         (folder_name, serial_num, department_id, location_id, user_id, created_at)
        VALUES (?, ?, ?, ?, ?, NOW())`,
-      [folder_name, serial_num, finalDepartmentId, location_id, sessionUser.user_id]
+      [folder_name, serial_num, finalDepartmentId, location_id, sessionUser.id]
     );
     const folder_id = insertResult.insertId;
 

@@ -7,15 +7,147 @@
   <link rel="icon" type="image/png" href="/Images/SAFWA-R Logo.png">
   <link rel="stylesheet" href="/styles.css">
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Mobile Sidebar Styles */
+    .mobile-menu-btn {
+      display: none;
+    }
+    
+    /* Delete Button Styles */
+    .delete-btn-ui {
+      flex-shrink: 0;
+      padding: 0.5rem;
+      color: #dc2626;
+      background: #fee2e2;
+      border-radius: 0.5rem;
+      transition: all 0.2s;
+      border: none;
+      cursor: pointer;
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    
+    /* Show delete button on hover of parent row */
+    .request-row:hover .delete-btn-ui {
+      opacity: 1;
+      transform: scale(1);
+    }
+    
+    .delete-btn-ui:hover {
+      background: #fecaca;
+      transform: scale(1.1) !important;
+    }
+    
+    .delete-btn-ui svg {
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+    
+    /* Loading spinner animation */
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    .animate-spin {
+      animation: spin 1s linear infinite;
+    }
+    
+    @media (max-width: 768px) {
+      .delete-btn-ui svg {
+        width: 1rem;
+        height: 1rem;
+      }
+      
+      .sidebar {
+        position: fixed !important;
+        left: -280px !important;
+        top: 0 !important;
+        height: 100vh !important;
+        width: 280px !important;
+        transition: left 0.3s ease !important;
+        z-index: 1001 !important;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        transform: none !important;
+      }
+      
+      .sidebar.active {
+        left: 0 !important;
+        display: flex !important;
+      }
+      
+      .main-content {
+        margin-left: 0 !important;
+        width: 100% !important;
+        padding-top: 60px;
+      }
+      
+      .mobile-menu-btn {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        top: 1rem;
+        left: 1rem;
+        z-index: 1000;
+        background: #1e3a8a;
+        color: white;
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      }
+      
+      .mobile-menu-btn:hover {
+        background: #1e40af;
+      }
+      
+      .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        backdrop-filter: blur(2px);
+      }
+      
+      .sidebar-overlay.active {
+        display: block;
+      }
+    }
+    
+    @media (min-width: 769px) {
+      .mobile-menu-btn {
+        display: none !important;
+      }
+      
+      .sidebar-overlay {
+        display: none !important;
+      }
+    }
+  </style>
 </head>
 
 <body class="bg-gray-50 text-gray-800">
+
+  <!-- Mobile Menu Button -->
+  <button class="mobile-menu-btn" id="mobileMenuBtn">
+    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </button>
+
+  <!-- Sidebar Overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
   <!-- Toast Container -->
   <div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
 
  <!-- Sidebar -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div>
       <img src="/images/SAFWA-R Logo.png" alt="Logo" class="w-20 mx-auto mb-8">
       <h1 class="text-xl font-bold mb-6 flex items-center gap-2">Staff Panel</h1>
@@ -29,17 +161,16 @@
 
   <!-- Main Content -->
   <main class="main-content fade-in">
-    <div class="content-wrapper max-w-6xl mx-auto w-full">
-
+    <div class="content-wrapper max-w-6xl mx-auto w-full px-4 md:px-6">
 
       <!-- Page Header with Department Info -->
       <div class="mb-6">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
           <div>
-            <h1 class="text-3xl font-bold text-navy mb-2">Department Files & Folders</h1>
-            <p class="text-gray-600">Manage folders and files for your department</p>
+            <h1 class="text-2xl md:text-3xl font-bold text-navy mb-2">Department Files & Folders</h1>
+            <p class="text-gray-600 text-sm md:text-base">Manage folders and files for your department</p>
           </div>
-          <div class="text-right">
+          <div class="text-left md:text-right">
             <p class="text-sm text-gray-600 mb-1">Your Department:</p>
             <div class="dept-badge">
               <span>🏢</span>
@@ -48,19 +179,18 @@
           </div>
         </div>
 
-
         
       <!-- Page Header with Inbox Style -->
       <section class="mb-6">
-        <div class="flex justify-between items-center">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div style="flex: 1;">
-            <h2 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <h2 class="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <svg class="w-6 h-6 md:w-8 md:h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
               </svg>
               My Inbox
             </h2>
-            <p class="text-gray-600 text-sm mt-1">Track your file requests and notifications</p>
+            <p class="text-gray-600 text-xs md:text-sm mt-1">Track your file requests and notifications</p>
           </div>
           <button id="newRequestBtn" style="width: auto !important; flex-shrink: 0;" class="bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium inline-flex items-center gap-1.5 shadow-sm transition-all whitespace-nowrap px-3 py-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -72,17 +202,17 @@
       </section>
 
       <!-- Stats Cards - Inbox Style -->
-     <div class="flex gap-4 mb-6">
+     <div class="grid grid-cols-2 md:flex md:gap-4 gap-3 mb-6">
 
         <!-- Pending -->
-        <div class="flex-1 bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500 hover:shadow-md transition">
+        <div class="flex-1 bg-white rounded-lg shadow p-3 md:p-4 border-l-4 border-yellow-500 hover:shadow-md transition">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-xs text-gray-600 font-medium uppercase">Pending</p>
-              <p id="statPending" class="text-3xl font-bold text-yellow-600 mt-1">0</p>
+              <p id="statPending" class="text-2xl md:text-3xl font-bold text-yellow-600 mt-1">0</p>
             </div>
-            <div class="bg-yellow-100 rounded-full p-3">
-              <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="bg-yellow-100 rounded-full p-2 md:p-3">
+              <svg class="w-4 h-4 md:w-6 md:h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </div>
@@ -90,14 +220,14 @@
         </div>
 
         <!-- Rejected -->
-        <div class="flex-1 bg-white rounded-lg shadow p-4 border-l-4 border-red-500 hover:shadow-md transition">
+        <div class="flex-1 bg-white rounded-lg shadow p-3 md:p-4 border-l-4 border-red-500 hover:shadow-md transition">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-xs text-gray-600 font-medium uppercase">Rejected</p>
-              <p id="statRejected" class="text-3xl font-bold text-red-600 mt-1">0</p>
+              <p id="statRejected" class="text-2xl md:text-3xl font-bold text-red-600 mt-1">0</p>
             </div>
-            <div class="bg-red-100 rounded-full p-3">
-              <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="bg-red-100 rounded-full p-2 md:p-3">
+              <svg class="w-4 h-4 md:w-6 md:h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </div>
@@ -105,14 +235,14 @@
         </div>
 
         <!-- Approved -->
-        <div class="flex-1 bg-white rounded-lg shadow p-4 border-l-4 border-green-500 hover:shadow-md transition">
+        <div class="flex-1 bg-white rounded-lg shadow p-3 md:p-4 border-l-4 border-green-500 hover:shadow-md transition">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-xs text-gray-600 font-medium uppercase">Approved</p>
-              <p id="statApproved" class="text-3xl font-bold text-green-600 mt-1">0</p>
+              <p id="statApproved" class="text-2xl md:text-3xl font-bold text-green-600 mt-1">0</p>
             </div>
-            <div class="bg-green-100 rounded-full p-3">
-              <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="bg-green-100 rounded-full p-2 md:p-3">
+              <svg class="w-4 h-4 md:w-6 md:h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </div>
@@ -120,14 +250,14 @@
         </div>
 
         <!-- Taken Out -->
-        <div class="flex-1 bg-white rounded-lg shadow p-4 border-l-4 border-blue-500 hover:shadow-md transition">
+        <div class="flex-1 bg-white rounded-lg shadow p-3 md:p-4 border-l-4 border-blue-500 hover:shadow-md transition">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-xs text-gray-600 font-medium uppercase">Taken Out</p>
-              <p id="statTakenOut" class="text-3xl font-bold text-blue-600 mt-1">0</p>
+              <p id="statTakenOut" class="text-2xl md:text-3xl font-bold text-blue-600 mt-1">0</p>
             </div>
-            <div class="bg-blue-100 rounded-full p-3">
-              <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="bg-blue-100 rounded-full p-2 md:p-3">
+              <svg class="w-4 h-4 md:w-6 md:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
               </svg>
             </div>
@@ -135,14 +265,14 @@
         </div>
 
         <!-- Returned -->
-        <div class="flex-1 bg-white rounded-lg shadow p-4 border-l-4 border-emerald-500 hover:shadow-md transition">
+        <div class="flex-1 bg-white rounded-lg shadow p-3 md:p-4 border-l-4 border-emerald-500 hover:shadow-md transition">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-xs text-gray-600 font-medium uppercase">Returned</p>
-              <p id="statReturned" class="text-3xl font-bold text-emerald-600 mt-1">0</p>
+              <p id="statReturned" class="text-2xl md:text-3xl font-bold text-emerald-600 mt-1">0</p>
             </div>
-            <div class="bg-emerald-100 rounded-full p-3">
-              <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="bg-emerald-100 rounded-full p-2 md:p-3">
+              <svg class="w-4 h-4 md:w-6 md:h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
@@ -152,53 +282,50 @@
 
       </div>
 
-
-
-
       <!-- Two Column Layout: Notifications + Requests -->
-      <div class="grid lg:grid-cols-3 gap-6">
+      <div class="grid lg:grid-cols-3 gap-4 md:gap-6">
         
         <!-- Notifications Panel (Left Side - 1 column) -->
-        <div class="lg:col-span-1">
-          <div class="bg-white rounded-lg shadow-md sticky top-6">
-            <div class="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-blue-600 rounded-t-lg">
-              <h3 class="font-bold text-white flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="lg:col-span-1 order-2 lg:order-1">
+          <div class="bg-white rounded-lg shadow-md lg:sticky lg:top-6">
+            <div class="p-3 md:p-4 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-blue-600 rounded-t-lg">
+              <h3 class="font-bold text-white flex items-center gap-2 text-sm md:text-base">
+                <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                 </svg>
                 Notifications
                 <span id="notificationBadge" class="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full hidden">0</span>
               </h3>
             </div>
-            <div id="notificationsList" class="p-4 max-h-96 overflow-y-auto space-y-3">
+            <div id="notificationsList" class="p-3 md:p-4 max-h-96 overflow-y-auto space-y-3">
               <div class="text-center py-8 text-gray-400">
-                <svg class="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-10 h-10 md:w-12 md:h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
                 </svg>
-                <p class="text-sm">No new notifications</p>
+                <p class="text-xs md:text-sm">No new notifications</p>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Requests List (Right Side - 2 columns) -->
-        <div class="lg:col-span-2">
+        <div class="lg:col-span-2 order-1 lg:order-2">
           <div class="bg-white rounded-lg shadow-md">
             <!-- Header -->
-            <div class="p-4 border-b border-gray-200 flex justify-between items-center">
-              <h3 class="font-bold text-gray-800 text-lg">My Requests</h3>
-              <button id="refreshBtn" class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="p-3 md:p-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 class="font-bold text-gray-800 text-base md:text-lg">My Requests</h3>
+              <button id="refreshBtn" class="text-blue-600 hover:text-blue-800 text-xs md:text-sm font-medium flex items-center gap-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg id="refreshIcon" class="w-3 h-3 md:w-4 md:h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                 </svg>
-                Refresh
+                <span id="refreshText">Refresh</span>
               </button>
             </div>
 
             <!-- Filter Bar -->
-            <div class="p-4 bg-gray-50 border-b border-gray-200">
-              <div class="flex flex-wrap gap-2">
-                <select id="filterStatus" class="text-sm border border-gray-300 rounded px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            <div class="p-3 md:p-4 bg-gray-50 border-b border-gray-200">
+              <div class="flex flex-col md:flex-row flex-wrap gap-2">
+                <select id="filterStatus" class="text-xs md:text-sm border border-gray-300 rounded px-2 md:px-3 py-1.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                   <option value="">All Status</option>
                   <option value="1">Pending</option>
                   <option value="2">Rejected</option>
@@ -207,24 +334,52 @@
                   <option value="5">Returned</option>
                 </select>
 
-                <input id="searchRequest" type="text" placeholder="🔍 Search..." class="text-sm border border-gray-300 rounded px-3 py-1.5 flex-1 min-w-[200px] focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                <input id="searchRequest" type="text" placeholder="🔍 Search..." class="text-xs md:text-sm border border-gray-300 rounded px-2 md:px-3 py-1.5 flex-1 min-w-[150px] focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
                 
-                <button id="filterBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded text-sm font-medium">Filter</button>
-                <button id="resetBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-1.5 rounded text-sm font-medium">Reset</button>
+                <div class="flex gap-2">
+                  <button id="filterBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-3 md:px-4 py-1.5 rounded text-xs md:text-sm font-medium">Filter</button>
+                  <button id="resetBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 md:px-4 py-1.5 rounded text-xs md:text-sm font-medium">Reset</button>
+                </div>
               </div>
             </div>
 
             <!-- Requests List (Email-like) -->
             <div id="requestsList" class="divide-y divide-gray-200 max-h-[600px] overflow-y-auto">
-              <!-- Requests will be loaded here -->
+              <!-- Loading State -->
+              <div id="loadingState" class="hidden p-8 text-center">
+                <svg class="animate-spin w-8 h-8 mx-auto mb-3 text-blue-600" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="text-gray-600 text-sm">Loading requests...</p>
+              </div>
+              
+              <!-- Requests will be loaded here dynamically -->
+              <!-- Example structure:
+              <div class="request-row p-3 md:p-4 hover:bg-gray-50 transition flex items-center gap-3" data-request-id="1" data-status="1">
+                <div class="flex-1 cursor-pointer" onclick="viewRequestDetails(id)">
+                  <div class="flex items-center justify-between mb-1">
+                    <h4 class="font-semibold text-gray-800 text-sm md:text-base">File Name</h4>
+                    <span class="badge text-xs px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">Pending</span>
+                  </div>
+                  <p class="text-xs md:text-sm text-gray-600">Folder: Folder Name</p>
+                  <p class="text-xs text-gray-500">Date • Time</p>
+                </div>
+                <button onclick="deleteRequestFromUI(event, id)" class="delete-btn-ui" title="Remove from view">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                  </svg>
+                </button>
+              </div>
+              -->
             </div>
 
             <p id="noRequests" class="text-center py-12 text-gray-400 hidden">
-              <svg class="w-16 h-16 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-12 h-12 md:w-16 md:h-16 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
               </svg>
-              <span class="block text-lg font-medium">No requests yet</span>
-              <span class="block text-sm mt-1">Create your first request to get started!</span>
+              <span class="block text-base md:text-lg font-medium">No requests yet</span>
+              <span class="block text-xs md:text-sm mt-1">Create your first request to get started!</span>
             </p>
           </div>
         </div>
@@ -239,8 +394,8 @@
     <div class="bg-white w-full max-w-lg rounded-lg shadow-xl relative max-h-[85vh] overflow-hidden flex flex-col">
 
       <!-- Modal Header -->
-      <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex justify-between items-center">
-        <h2 class="text-xl font-bold text-white">New File Request</h2>
+      <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center">
+        <h2 class="text-lg md:text-xl font-bold text-white">New File Request</h2>
         <button id="closeModalBtn" class="text-white hover:text-gray-200 transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -249,7 +404,7 @@
       </div>
 
       <!-- Modal Body - Scrollable -->
-      <div class="overflow-y-auto flex-1 p-6">
+      <div class="overflow-y-auto flex-1 p-4 md:p-6">
         <form id="requestForm" class="space-y-4">
 
           <!-- Move ID (Auto-generated, disabled) -->
@@ -307,7 +462,7 @@
       </div>
 
       <!-- Modal Footer -->
-      <div class="bg-gray-50 px-6 py-3 flex justify-end gap-2 border-t">
+      <div class="bg-gray-50 px-4 md:px-6 py-3 flex justify-end gap-2 border-t">
         <button type="button" id="cancelBtn" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 text-sm font-medium transition-colors">
           Cancel
         </button>
@@ -320,10 +475,10 @@
   </div>
 
   <!-- Request Details Modal -->
-  <div id="detailsModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50">
-    <div class="bg-white w-full max-w-2xl p-6 rounded-xl shadow-lg relative">
+  <div id="detailsModal" class="fixed inset-0 bg-black bg-opacity-40 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white w-full max-w-2xl p-4 md:p-6 rounded-xl shadow-lg relative max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center mb-4">
-        <h3 class="text-xl font-bold">Request Details</h3>
+        <h3 class="text-lg md:text-xl font-bold">Request Details</h3>
         <button onclick="closeDetailsModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
       </div>
       <div id="detailsBody"></div>
@@ -331,6 +486,200 @@
   </div>
 
 <script src="/js/staff/request.js" defer></script>
+
+<script>
+  // Mobile menu toggle
+  document.addEventListener('DOMContentLoaded', function() {
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    
+    if (mobileMenuBtn && sidebar && sidebarOverlay) {
+      mobileMenuBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        sidebar.classList.toggle('active');
+        sidebarOverlay.classList.toggle('active');
+      });
+      
+      sidebarOverlay.addEventListener('click', function() {
+        sidebar.classList.remove('active');
+        sidebarOverlay.classList.remove('active');
+      });
+      
+      // Close sidebar when a nav link is clicked on mobile
+      const navLinks = document.querySelectorAll('.sidebar nav a');
+      navLinks.forEach(link => {
+        link.addEventListener('click', function() {
+          if (window.innerWidth <= 768) {
+            sidebar.classList.remove('active');
+            sidebarOverlay.classList.remove('active');
+          }
+        });
+      });
+    }
+    
+    // Setup refresh button with loading state
+    setupRefreshButton();
+  });
+
+  // Setup refresh button functionality
+  function setupRefreshButton() {
+    const refreshBtn = document.getElementById('refreshBtn');
+    const refreshIcon = document.getElementById('refreshIcon');
+    const refreshText = document.getElementById('refreshText');
+    
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', async function() {
+        // Show loading state
+        refreshBtn.disabled = true;
+        refreshIcon.classList.add('animate-spin');
+        refreshText.textContent = 'Loading...';
+        
+        // Show loading in list
+        showLoadingState();
+        
+        try {
+          // Call your existing refresh/load function here
+          // Example: await loadRequests();
+          // For now, simulate loading with timeout
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Your actual data loading code would go here
+          // await fetchAndDisplayRequests();
+          
+          showToast('Requests refreshed successfully', 'success');
+        } catch (error) {
+          console.error('Error refreshing:', error);
+          showToast('Failed to refresh requests', 'error');
+        } finally {
+          // Reset button state
+          refreshBtn.disabled = false;
+          refreshIcon.classList.remove('animate-spin');
+          refreshText.textContent = 'Refresh';
+          hideLoadingState();
+        }
+      });
+    }
+  }
+
+  // Show loading state in requests list
+  function showLoadingState() {
+    const loadingState = document.getElementById('loadingState');
+    const requestsList = document.getElementById('requestsList');
+    const noRequests = document.getElementById('noRequests');
+    
+    if (loadingState) {
+      loadingState.classList.remove('hidden');
+    }
+    if (noRequests) {
+      noRequests.classList.add('hidden');
+    }
+    // Hide existing requests during refresh
+    const requests = requestsList?.querySelectorAll('.request-row');
+    requests?.forEach(req => req.style.display = 'none');
+  }
+
+  // Hide loading state
+  function hideLoadingState() {
+    const loadingState = document.getElementById('loadingState');
+    const requestsList = document.getElementById('requestsList');
+    
+    if (loadingState) {
+      loadingState.classList.add('hidden');
+    }
+    // Show requests again
+    const requests = requestsList?.querySelectorAll('.request-row');
+    requests?.forEach(req => req.style.display = '');
+  }
+
+  // Delete request from UI only (not database)
+  function deleteRequestFromUI(event, requestId) {
+    event.stopPropagation(); // Prevent triggering the row click event
+    
+    // Confirm deletion
+    if (confirm('Remove this request from view? (This will not delete it from the database)')) {
+      // Find and remove the request element
+      const requestElement = event.target.closest('[data-request-id]');
+      if (requestElement) {
+        // Add fade-out animation
+        requestElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+        requestElement.style.opacity = '0';
+        requestElement.style.transform = 'translateX(-20px)';
+        
+        // Remove after animation
+        setTimeout(() => {
+          requestElement.remove();
+          
+          // Update counts
+          updateRequestCounts();
+          
+          // Check if list is empty
+          const requestsList = document.getElementById('requestsList');
+          const noRequests = document.getElementById('noRequests');
+          const visibleRequests = requestsList?.querySelectorAll('.request-row:not([style*="display: none"])');
+          
+          if (!visibleRequests || visibleRequests.length === 0) {
+            if (noRequests) {
+              noRequests.classList.remove('hidden');
+            }
+          }
+          
+          // Show success message
+          showToast('Request removed from view', 'success');
+        }, 300);
+      }
+    }
+  }
+
+  // Update request counts after deletion
+  function updateRequestCounts() {
+    const requests = document.querySelectorAll('#requestsList [data-request-id]');
+    let pending = 0, rejected = 0, approved = 0, takenOut = 0, returned = 0;
+    
+    requests.forEach(req => {
+      const status = req.getAttribute('data-status');
+      switch(status) {
+        case '1': pending++; break;
+        case '2': rejected++; break;
+        case '3': approved++; break;
+        case '4': takenOut++; break;
+        case '5': returned++; break;
+      }
+    });
+    
+    document.getElementById('statPending').textContent = pending;
+    document.getElementById('statRejected').textContent = rejected;
+    document.getElementById('statApproved').textContent = approved;
+    document.getElementById('statTakenOut').textContent = takenOut;
+    document.getElementById('statReturned').textContent = returned;
+  }
+
+  // Show toast notification
+  function showToast(message, type = 'info') {
+    const toastContainer = document.getElementById('toastContainer');
+    if (!toastContainer) return;
+    
+    const toast = document.createElement('div');
+    toast.className = `px-4 py-3 rounded-lg shadow-lg text-white flex items-center gap-2 ${
+      type === 'success' ? 'bg-green-500' : 
+      type === 'error' ? 'bg-red-500' : 
+      'bg-blue-500'
+    } transform transition-all duration-300 translate-x-0`;
+    
+    // Add icon based on type
+    const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
+    toast.innerHTML = `<span class="text-lg font-bold">${icon}</span><span>${message}</span>`;
+    
+    toastContainer.appendChild(toast);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+      toast.style.transform = 'translateX(400px)';
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+</script>
 
 </body>
 </html>

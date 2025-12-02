@@ -1,4 +1,4 @@
-// staffRequest.js - FILE-FIRST VERSION
+// staffRequest.js - FIXED VERSION
 // ============================
 // 🔹 Helper Shortcut
 // ============================
@@ -11,6 +11,7 @@ let files = [];
 let requestsData = [];
 let originalData = [];
 let currentUser = null;
+let notificationsData = [];
 
 // ============================
 // 🔹 Debug Logger
@@ -23,11 +24,11 @@ function debugLog(message, data = null) {
 // 🔹 Status Configuration
 // ============================
 const STATUS_MAP = {
-  1: { label: 'Pending', class: 'status-badge status-pending' },
-  2: { label: 'Rejected', class: 'status-badge status-rejected' },
-  3: { label: 'Approved', class: 'status-badge status-approved' },
-  4: { label: 'Taken Out', class: 'status-badge status-taken-out' },
-  5: { label: 'Returned', class: 'status-badge status-returned' }
+  1: { label: 'Pending', class: 'bg-yellow-100 text-yellow-800', icon: 'clock' },
+  2: { label: 'Rejected', class: 'bg-red-100 text-red-800', icon: 'x-circle' },
+  3: { label: 'Approved', class: 'bg-green-100 text-green-800', icon: 'check-circle' },
+  4: { label: 'Taken Out', class: 'bg-blue-100 text-blue-800', icon: 'clipboard' },
+  5: { label: 'Returned', class: 'bg-emerald-100 text-emerald-800', icon: 'refresh' }
 };
 
 // ============================
@@ -69,7 +70,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupEventListeners();
   await loadCurrentUser();
   await loadFiles();
-  await loadRequests();
+   await loadRequests();
+  loadNotifications();
 });
 
 // ============================
@@ -87,9 +89,9 @@ function setupEventListeners() {
 
   // File select change -> auto-fill folder
   el("fileSelect")?.addEventListener("change", (e) => {
-    const fileId = e.target.value;
-    if (fileId) {
-      autoFillFolder(fileId);
+    const file_id = e.target.value;
+    if (file_id) {
+      autoFillFolder(file_id);
     } else {
       clearFolderField();
     }
@@ -106,11 +108,11 @@ function setupEventListeners() {
   el("requestForm")?.addEventListener("submit", handleNewRequestSubmit);
 }
 
-// // ============================
+// ============================
 // 🔹 Load Current User
 // ============================
 async function loadCurrentUser() {
-  const deptDisplay = document.getElementById("userDepartmentDisplay"); // Add this
+  const deptDisplay = el("userDepartmentDisplay");
   
   try {
     debugLog("Loading current user...");
@@ -121,7 +123,6 @@ async function loadCurrentUser() {
       currentUser = await res.json();
       debugLog("Current user loaded:", currentUser);
       
-      // 🔥 Display department name in UI
       if (deptDisplay && currentUser.department_name) {
         deptDisplay.textContent = currentUser.department_name;
       } else if (deptDisplay) {
@@ -129,7 +130,6 @@ async function loadCurrentUser() {
       }
       
     } else {
-      // Use mock user if auth fails
       currentUser = {
         user_id: 1,
         name: "Test User",
@@ -181,7 +181,6 @@ async function loadFiles() {
     
     if (files.length === 0) {
       console.warn("⚠️ No files found in database");
-      showToast("No files found in database", "error");
     }
     
     localStorage.setItem("files", JSON.stringify(files));
@@ -207,29 +206,35 @@ async function loadFiles() {
 function populateFileSelect() {
   const sel = el("fileSelect");
   if (!sel) return;
-
   sel.innerHTML = `<option value="">Choose a file</option>`;
 
   files.forEach(f => {
+    const fileId = f.file_id;
+    const fileName = f.file_name || 'Unnamed File';
+    const folderId = f.folder_id ?? f.folder?.folder_id ?? '';
+    const folderName = f.folder_name ?? f.folder?.folder_name ?? 'No Folder';
+
     const opt = document.createElement("option");
-
-    const fileId = f.file_id ?? f.id;
-    const fileName = f.file_name ?? f.name ?? f.filename ?? "Unnamed File";
-
-    // ✅ Handle nested folder object
-    let folderId = f.folder_id ?? f.folder?.id ?? '';
-    let folderName = f.folder_name ?? f.folder?.name ?? 'No Folder';
-
     opt.value = fileId;
     opt.textContent = `${fileName} (${folderName})`;
     opt.dataset.folderId = folderId;
     opt.dataset.folderName = folderName;
-
     sel.appendChild(opt);
   });
 }
 
+function autoFillFolder(fileId) {
+  const sel = el("fileSelect");
+  const opt = sel.querySelector(`option[value="${fileId}"]`);
+  if (!opt) return;
+  el("folderName").value = opt.dataset.folderName || '';
+  el("folderId").value = opt.dataset.folderId || '';
+}
 
+function clearFolderField() {
+  el("folderName").value = '';
+  el("folderId").value = '';
+}
 
 // Auto-fill folder when file is selected
 function autoFillFolder(fileId) {
@@ -241,7 +246,6 @@ function autoFillFolder(fileId) {
   el("folderId").value = opt.dataset.folderId || '';
 }
 
-
 function clearFolderField() {
   const folderInput = el("folderName");
   const folderIdInput = el("folderId");
@@ -251,45 +255,66 @@ function clearFolderField() {
 }
 
 // ============================
-// 🔹 Load Requests
+// 🔹 Load Requests - ONLY PENDING IN MY REQUESTS
 // ============================
 async function loadRequests() {
   try {
-    debugLog("Fetching requests from API...");
     const res = await fetch("/api/file-movements");
-    debugLog("Requests API response status:", res.status);
-    
-    if (!res.ok) {
-      throw new Error(`Failed to load requests: ${res.status} ${res.statusText}`);
-    }
-    
-    requestsData = await res.json();
-    debugLog("✅ Requests loaded:", requestsData);
-    
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    const allRequests = await res.json();
+    const myId = currentUser?.user_id ?? currentUser?.id;
+
+    // Only pending requests for this user
+    requestsData = allRequests.filter(r => r.user_id === myId && r.status_id === 1);
+
+    // Map to include file and folder names
+    requestsData = requestsData.map(r => {
+      const file = files.find(f => f.file_id == r.file_id);
+      const folderName = file?.folder_name || file?.folder?.folder_name || 'No Folder';
+      const fileName = file?.file_name || 'Unnamed File';
+      return {
+        ...r,
+        file_name: fileName,
+        folder_name: folderName
+      };
+    });
+
     originalData = [...requestsData];
-    localStorage.setItem("file_movements", JSON.stringify(requestsData));
+    localStorage.setItem(`file_movements_${myId}`, JSON.stringify(allRequests));
+
     renderRequests(requestsData);
-    updateStats(requestsData);
-    
+    updateStats(allRequests.filter(r => r.user_id === myId));
+    updateNotifications(allRequests, myId);
+
   } catch (err) {
     console.error("❌ Error loading requests:", err);
-    
-    const stored = localStorage.getItem("file_movements");
-    if (stored) {
-      requestsData = JSON.parse(stored);
-      originalData = [...requestsData];
-      renderRequests(requestsData);
-      updateStats(requestsData);
-      showToast("Using cached requests (offline)", "error");
-    } else {
-      requestsData = [];
-      originalData = [];
-      renderRequests([]);
-      updateStats([]);
-      showToast(`Failed to load requests: ${err.message}`, "error");
-    }
+    const myId = currentUser?.user_id ?? currentUser?.id;
+    const stored = localStorage.getItem(`file_movements_${myId}`);
+    const allRequests = stored ? JSON.parse(stored) : [];
+
+    requestsData = allRequests.filter(r => r.user_id === myId && r.status_id === 1).map(r => {
+      const file = files.find(f => f.file_id == r.file_id);
+      const folderName = file?.folder_name || file?.folder?.folder_name || 'No Folder';
+      const fileName = file?.file_name || 'Unnamed File';
+      return {
+        ...r,
+        file_name: fileName,
+        folder_name: folderName
+      };
+    });
+
+    originalData = [...requestsData];
+
+    renderRequests(requestsData);
+    updateStats(allRequests.filter(r => r.user_id === myId));
+    updateNotifications(allRequests, myId);
+
+    showToast(stored ? "Using cached requests (offline)" : `Failed to load requests: ${err.message}`, "error");
   }
 }
+
+
+
 
 // ============================
 // 🔹 Render Requests
@@ -297,78 +322,148 @@ async function loadRequests() {
 function renderRequests(requests) {
   const list = el("requestsList");
   const noRequests = el("noRequests");
-
   if (!list) return;
-
   list.innerHTML = "";
 
   if (!requests || requests.length === 0) {
     if (noRequests) noRequests.classList.remove("hidden");
     return;
-  } else {
-    if (noRequests) noRequests.classList.add("hidden");
-  }
+  } else if (noRequests) noRequests.classList.add("hidden");
 
-  requests.sort((a, b) => {
-    const ta = a.move_date ? new Date(a.move_date).getTime() : 0;
-    const tb = b.move_date ? new Date(b.move_date).getTime() : 0;
-    return tb - ta;
-  });
+  // Sort by move_date descending
+  requests.sort((a, b) => new Date(b.move_date) - new Date(a.move_date));
 
   requests.forEach(req => {
-    const status = STATUS_MAP[req.status_id] || { label: 'Unknown', class: 'status-badge' };
+    // ✅ Map values correctly
+    const fileName = req.files?.[0]?.file_name || 'Unnamed File';
+    const folderName = req.files?.[0]?.folder_name || 'No Folder';
+    const requestedByName = req.user_name || 'Unknown';
+    const status = STATUS_MAP[req.status_id] || { label: req.status_name || 'Unknown', class: 'bg-gray-100 text-gray-800' };
     const moveDate = req.move_date ? formatDateTime(req.move_date) : '-';
-    const requester = req.requested_by_name ?? req.requested_by ?? req.user_name ?? (currentUser?.name ?? 'User');
 
     const item = document.createElement("div");
-    item.className = `request-item px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-start gap-4`;
-    item.innerHTML = `
-      <div class="flex-1 min-w-0">
-        <div class="flex items-start gap-3">
-          <div class="w-10 flex-shrink-0">
-            <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center font-semibold text-blue-700">
-              ${escapeInitials(requester)}
-            </div>
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="flex justify-between items-center gap-4">
-              <div class="truncate">
-                <p class="font-semibold text-gray-800 truncate">${escapeHtml(req.folder_name || 'No folder')}</p>
-                <p class="text-sm text-gray-500 truncate">${escapeHtml(req.file_name || 'Entire folder')} · Requested by ${escapeHtml(requester)}</p>
-              </div>
-              <div class="text-right text-sm">
-                <p class="text-xs text-gray-400">${moveDate}</p>
-                <div class="mt-2">${renderStatusBadgeInline(req.status_id)}</div>
-              </div>
-            </div>
-            <div class="mt-2 text-sm text-gray-600 truncate">${escapeHtml((req.remark) ? (req.remark) : '')}</div>
-          </div>
-        </div>
-      </div>
-      <div class="flex-shrink-0">
-        <button class="text-sm px-3 py-1 rounded border hover:bg-gray-100" onclick="showDetailsModal(${req.move_id}, event)">Details</button>
-      </div>
-    `;
-    item.addEventListener("click", (e) => {
-      if (e.target.closest("button")) return;
-      showDetailsModal(req.move_id, e);
-    });
+    item.className = `request-row p-3 md:p-4 hover:bg-gray-50 transition flex items-center gap-3`;
+    item.dataset.requestId = req.move_id;
+    item.dataset.status = req.status_id;
 
+    item.innerHTML = `
+      <div class="flex-1 cursor-pointer">
+        <div class="flex items-center justify-between mb-1">
+          <h4 class="font-semibold text-gray-800 text-sm md:text-base">${escapeHtml(fileName)}</h4>
+          <span class="badge text-xs px-2 py-1 rounded-full ${status.class}">${status.label}</span>
+        </div>
+        <p class="text-xs md:text-sm text-gray-600">Folder: ${escapeHtml(folderName)}</p>
+        <p class="text-xs md:text-sm text-gray-600">Requested By: ${escapeHtml(requestedByName)}</p>
+        <p class="text-xs text-gray-500">${moveDate}</p>
+      </div>
+      <button onclick="deleteRequestFromUI(event, ${req.move_id})" class="delete-btn-ui" title="Remove from view">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+      </button>
+    `;
+
+    item.querySelector('.flex-1').addEventListener("click", () => showDetailsModal(req.move_id));
     list.appendChild(item);
   });
 }
 
-function renderStatusBadgeInline(statusId) {
-  const map = STATUS_MAP[statusId] || { label: 'Unknown', class: 'status-badge' };
-  return `<span class="${map.class}">${map.label}</span>`;
+
+// ============================
+// 🔹 Delete Request from UI
+// ============================
+function deleteRequestFromUI(event, requestId) {
+  event.stopPropagation();
+  if (!confirm('Remove this request from view?')) return;
+
+  const requestElement = event.target.closest('[data-request-id]');
+  if (!requestElement) return;
+
+  requestElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+  requestElement.style.opacity = '0';
+  requestElement.style.transform = 'translateX(-20px)';
+
+  setTimeout(() => {
+    requestElement.remove();
+    requestsData = requestsData.filter(r => r.move_id !== requestId);
+    originalData = originalData.filter(r => r.move_id !== requestId);
+    if (!el("requestsList")?.querySelectorAll('.request-row').length) el("noRequests")?.classList.remove("hidden");
+    showToast('Request removed from view', 'success');
+  }, 300);
+}
+window.deleteRequestFromUI = deleteRequestFromUI;
+
+
+
+
+// ============================
+// 🔹 Update Notifications - USER INBOX ONLY
+// ============================
+function updateNotifications(allRequests, currentUserId) {
+  // Only approved/rejected and belonging to this user
+  notificationsData = allRequests.filter(req => 
+    (req.status_id === 2 || req.status_id === 3) &&
+    req.user_id === currentUserId
+  );
+  renderNotifications();
 }
 
-function escapeInitials(name) {
-  if (!name) return 'U';
-  const parts = name.split(/\s+/).filter(Boolean);
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+// ============================
+// 🔹 Render Notifications (Checkbox hidden by default)
+// ============================
+function renderNotifications() {
+  const list = el("notificationsList");
+  const badge = el("notificationBadge");
+  if (!list) return;
+
+  if (!notificationsData.length) {
+    list.innerHTML = `<div class="text-center py-8 text-gray-400">No notifications</div>`;
+    if (badge) badge.classList.add('hidden');
+    return;
+  }
+
+  if (badge) { badge.textContent = notificationsData.length; badge.classList.remove('hidden'); }
+
+  notificationsData.sort((a, b) => new Date(b.move_date) - new Date(a.move_date));
+  list.innerHTML = "";
+
+  notificationsData.forEach(notif => {
+    const isApproved = notif.status_id === 3;
+    const status = STATUS_MAP[notif.status_id] || { label: 'Unknown', class: 'bg-gray-100 text-gray-800' };
+    
+    const fileNames = notif.files?.map(f => f.file_name).join(", ") || "-";
+    const folderNames = notif.files?.map(f => f.folder_name).join(", ") || "-";
+
+    const notifItem = document.createElement('div');
+    notifItem.className = `p-3 rounded-lg border flex items-start gap-2
+      ${isApproved ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'} hover:shadow-sm transition cursor-pointer`;
+    notifItem.dataset.moveId = notif.move_id;
+
+    notifItem.innerHTML = `
+      <div class="flex-1">
+        <p class="text-sm font-semibold ${isApproved ? 'text-green-800' : 'text-red-800'} mb-1">Request ${status.label}</p>
+        <p class="text-xs text-gray-700 truncate">File(s): ${escapeHtml(fileNames)}</p>
+        <p class="text-xs text-gray-700 truncate">Folder(s): ${escapeHtml(folderNames)}</p>
+        <p class="text-xs text-gray-500 mt-1">Requested By: ${escapeHtml(notif.user_name || notif.user_id)}</p>
+        <p class="text-xs text-gray-500 mt-1">${notif.move_date ? formatDateTime(notif.move_date) : 'Recently'}</p>
+      </div>
+    `;
+
+    notifItem.addEventListener('click', () => showDetailsModal(notif.move_id));
+    list.appendChild(notifItem);
+  });
 }
+
+// ============================
+// 🔹 Load Notifications
+// ============================
+function loadNotifications(currentUserId) { 
+  renderNotifications();
+}
+
+
+
+
 
 // ============================
 // 🔹 Filters
@@ -386,20 +481,18 @@ function applyFilters() {
 
   if (searchFilter) {
     filtered = filtered.filter(r => {
-      const hay = `${r.folder_name ?? ''} ${r.file_name ?? ''} ${r.remark ?? ''} ${(r.requested_by_name ?? '')}`.toLowerCase();
+      const hay = `${r.folder_name ?? ''} ${r.file_name ?? ''} ${r.remark ?? ''}`.toLowerCase();
       return hay.includes(searchFilter);
     });
   }
 
   renderRequests(filtered);
-  updateStats(filtered);
 }
 
 function resetFilters() {
   if (el('filterStatus')) el('filterStatus').value = '';
   if (el('searchRequest')) el('searchRequest').value = '';
   renderRequests(originalData);
-  updateStats(originalData);
 }
 
 // ============================
@@ -435,14 +528,11 @@ async function openRequestModal() {
   
   clearFolderField();
   
-  // Ensure files are loaded
   if (files.length === 0) {
     debugLog("⚠️ No files loaded, fetching now...");
     await loadFiles();
   }
-  console.log(files);
   
-  // Re-populate to ensure fresh
   populateFileSelect();
   
   const modal = el("newRequestModal");
@@ -494,12 +584,11 @@ async function handleNewRequestSubmit(e) {
     return;
   }
 
-  // Combine date and time into ISO format
   const moveDateTime = new Date(`${reqDate}T${reqTime}`).toISOString();
 
   const payload = {
     folder_id: folderId,
-    files: [fileId],  // Backend expects array
+    files: [fileId],
     move_type: "Take Out",
     move_date: moveDateTime,
     remark: remark,
@@ -525,19 +614,12 @@ async function handleNewRequestSubmit(e) {
     } else {
       const err = await res.json().catch(() => ({}));
       console.error("❌ Create request failed:", err);
-      showToast(err.message || "Failed to create request, you only can request your department file", "error");
+      showToast(err.message || "Failed to create request", "error");
     }
   } catch (err) {
     console.error("❌ Create request error:", err);
-    const tempId = Date.now();
-    payload.move_id = tempId;
-    requestsData.unshift(payload);
-    originalData = [...requestsData];
-    localStorage.setItem("file_movements", JSON.stringify(requestsData));
-    showToast("Request saved locally (offline)", "success");
+    showToast("Network error. Request saved locally.", "error");
     closeRequestModal();
-    renderRequests(requestsData);
-    updateStats(requestsData);
   }
 }
 
@@ -551,7 +633,14 @@ function showDetailsModal(moveId, event) {
   if (typeof moveId === "object") {
     req = moveId;
   } else {
-    req = requestsData.find(r => Number(r.move_id) === Number(moveId)) || originalData.find(r => Number(r.move_id) === Number(moveId));
+    // Search in all requests (including notifications)
+    const myId = currentUser?.user_id ?? currentUser?.id;
+const allRequests = JSON.parse(localStorage.getItem(`file_movements_${myId}`) || "[]");
+    req = allRequests.find(r => Number(r.move_id) === Number(moveId));
+    
+    if (!req) {
+      req = requestsData.find(r => Number(r.move_id) === Number(moveId));
+    }
   }
 
   if (!req) {
@@ -562,7 +651,11 @@ function showDetailsModal(moveId, event) {
   const details = el("detailsBody");
   if (!details) return;
 
-  const status = STATUS_MAP[req.status_id] || { label: 'Unknown', class: 'status-badge' };
+  const status = STATUS_MAP[req.status_id] || { label: req.status_name || 'Unknown', class: 'bg-gray-100 text-gray-800' };
+
+  // Prepare file and folder info
+  const fileNames = req.files?.map(f => f.file_name).join(", ") || "-";
+  const folderNames = req.files?.map(f => f.folder_name).join(", ") || "N/A";
 
   details.innerHTML = `
     <div class="space-y-4">
@@ -573,18 +666,18 @@ function showDetailsModal(moveId, event) {
         </div>
         <div>
           <p class="text-sm text-gray-500 font-medium">Status</p>
-          <span class="${status.class}">${status.label}</span>
+          <span class="inline-block px-3 py-1 rounded-full text-sm font-medium ${status.class}">${status.label}</span>
         </div>
       </div>
 
       <div class="border-t pt-3">
-        <p class="text-sm text-gray-500 font-medium">Folder</p>
-        <p class="text-base font-semibold text-gray-800">${escapeHtml(req.folder_name || 'N/A')}</p>
+        <p class="text-sm text-gray-500 font-medium">Folder(s)</p>
+        <p class="text-base font-semibold text-gray-800">${escapeHtml(folderNames)}</p>
       </div>
 
       <div>
-        <p class="text-sm text-gray-500 font-medium">File</p>
-        <p class="text-base text-gray-800">${escapeHtml(req.file_name || '-')}</p>
+        <p class="text-sm text-gray-500 font-medium">File(s)</p>
+        <p class="text-base text-gray-800">${escapeHtml(fileNames)}</p>
       </div>
 
       <div>
@@ -599,7 +692,7 @@ function showDetailsModal(moveId, event) {
 
       <div>
         <p class="text-sm text-gray-500 font-medium">Requested By</p>
-        <p class="text-sm text-gray-800">${escapeHtml(req.requested_by_name || 'Unknown')}</p>
+        <p class="text-sm text-gray-800">${escapeHtml(req.user_name || 'Unknown')}</p>
       </div>
     </div>
   `;
@@ -625,7 +718,10 @@ function closeDetailsModal() {
 function handleLogout() {
   if (confirm('Are you sure you want to logout?')) {
     fetch("/api/auth/logout", { method: "POST", credentials: "include" })
-      .finally(() => { window.location.href = '/login.html'; });
+      .finally(() => { 
+        localStorage.removeItem(`file_movements_${currentUser?.user_id}`); // Clean cached user requests
+        window.location.href = '/login.html';
+      });
   }
 }
 

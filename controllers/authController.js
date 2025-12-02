@@ -42,19 +42,11 @@ exports.login = async (req, res) => {
     }
 
     // 🔹 Determine role based on userlevel
-<<<<<<< Updated upstream
     let role = "staff";
     if ([].includes(user.userlevel)) role = "super_admin";
-    else if ([-1,2,11,12,28,36].includes(user.userlevel)) role = "admin";
+    else if ([2,11,12,28,36].includes(user.userlevel)) role = "admin";
     else if ([13,14,25,35].includes(user.userlevel)) role = "HR";
     
-=======
-    let role = "user";
-    if ([18].includes(user.userlevel)) role = "super_admin";
-    else if ([2].includes(user.userlevel)) role = "admin";
-    else if ([-1,1].includes(user.userlevel)) role = "staff";
-    else if ([13].includes(user.userlevel)) role = "HR";
->>>>>>> Stashed changes
 
     // 🔹 Save session info
     req.session.user = {
@@ -125,3 +117,5 @@ exports.getCurrentUser = async (req, res) => {
   
   return res.status(401).json({ error: 'Not authenticated' });
 };
+
+
