@@ -42,11 +42,11 @@ exports.login = async (req, res) => {
     }
 
     // 🔹 Determine role based on userlevel
-    let role = "user";
-    if ([37,18].includes(user.userlevel)) role = "super_admin";
-    else if ([-1,2].includes(user.userlevel)) role = "admin";
-    else if ([1].includes(user.userlevel)) role = "staff";
-    else if ([13].includes(user.userlevel)) role = "HR";
+    let role = "staff";
+    if ([].includes(user.userlevel)) role = "super_admin";
+    else if ([-1,2,11,12,28,36].includes(user.userlevel)) role = "admin";
+    else if ([13,14,25,35].includes(user.userlevel)) role = "HR";
+    
 
     // 🔹 Save session info
     req.session.user = {
