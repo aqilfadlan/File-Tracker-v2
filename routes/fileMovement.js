@@ -10,11 +10,21 @@ router.put("/:move_id/Approved", fileMovementController.approveMovement);
 // 📌 GET ROUTES (specific first, general last)
 // ====================================
 
+// Check for duplicate requests (MUST be before /:move_id)
+router.get("/check-duplicate", fileMovementController.checkDuplicateRequest);
+
 // Get folders by department
 router.get("/folders-by-department", fileMovementController.getFoldersByDepartment);
 
 // Get pending movements
 router.get("/pending", fileMovementController.getPendingMovements);
+
+// Get my requests (logged-in user's requests)
+router.get("/my-requests", fileMovementController.getMyRequests);
+
+// Get my notifications
+router.get("/my-notifications", fileMovementController.getMyNotifications);
+
 
 // Get specific movement by ID
 // -------------------------------
@@ -73,5 +83,6 @@ router.put("/:move_id/take-out", fileMovementController.takeOutFile);
 
 // Return file
 router.put("/:move_id/return", fileMovementController.returnFile);
+
 
 module.exports = router;
