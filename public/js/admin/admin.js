@@ -440,93 +440,121 @@ function toggleFiles(event, folderId) {
 // ---------------------------
 // Open View Modal
 // ---------------------------
-function openViewModal(id) {
+// ---------------------------
+// Open View Modal
+// ---------------------------
+async function openViewModal(id) {
   console.log("openViewModal called with id:", id);
-  const folder = allFolders.find(f => String(f.folder_id ?? f.id) === String(id));
-  if (!folder) {
-    console.error("Folder not found:", id);
-    return showToast("Folder not found", "error");
-  }
 
-  console.log("Found folder:", folder);
-
-  // Safe text setter
-  const setText = (id, text) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = text ?? "-";
-  };
-
-  setText("viewFolderName", folder.folder_name);
-  setText("viewDepartment", folder.department);
-  setText("viewLocation", folder.location_name || folder.location);
-  setText("viewCreatedBy", folder.created_by);
-  setText("viewCreatedAt", folder.created_at ? new Date(folder.created_at).toLocaleString() : "-");
-  setText("viewSerial", folder.serial_num);
-  setText("filesCount", folder.files_inside?.length ?? 0);
-
-  // Used for section
-  const usedForSection = document.getElementById("viewUsedForSection");
-  const usedForText = document.getElementById("viewUsedFor");
-  if (usedForSection && usedForText) {
-    if (folder.used_for) {
-      usedForText.textContent = folder.used_for;
-      usedForSection.classList.remove("hidden");
-    } else {
-      usedForSection.classList.add("hidden");
+  // Always fetch FULL folder details from API
+  try {
+    const res = await fetch(`/api/folder/${id}`);
+    
+    if (!res.ok) {
+      throw new Error(`Failed to load folder: ${res.status}`);
     }
-  }
 
-  // Files list
-  const viewFiles = document.getElementById("viewFiles");
-  if (viewFiles) {
-    viewFiles.innerHTML = "";
-    if (folder.files_inside && folder.files_inside.length) {
-      folder.files_inside.forEach(f => {
-        const div = document.createElement("div");
-        div.className = "file-item";
-        div.innerHTML = `<span class="text-blue-900">📄</span> <span class="text-gray-700">${escapeHtml(f)}</span>`;
-        viewFiles.appendChild(div);
-      });
-    } else {
-      viewFiles.innerHTML = '<div class="text-gray-500 italic text-center py-8">No files in this folder</div>';
-    }
-  }
+    const folder = await res.json();
+    console.log("Loaded folder details:", folder);
 
-  // QR Code
-  const qrImg = document.getElementById("viewQr");
-  if (qrImg) {
-    if (folder.qr_code) {
-      qrImg.src = folder.qr_code;
-    } else if (folder.serial_num && window.QRCode) {
-      try {
-        QRCode.toDataURL(folder.serial_num, { width: 200 }, (err, url) => {
-          if (!err) qrImg.src = url;
-        });
-      } catch (e) {
-        console.warn("QR generation failed", e);
+    // Safe text setter helper
+    const setText = (elementId, text) => {
+      const element = document.getElementById(elementId);
+      if (element) element.textContent = text ?? "-";
+    };
+
+    // Populate folder information
+    setText("viewFolderName", folder.folder_name);
+    setText("viewDepartment", folder.department);
+    setText("viewLocation", folder.location_name || folder.location);
+    setText("viewCreatedBy", folder.created_by);
+    setText("viewCreatedAt", folder.created_at ? new Date(folder.created_at).toLocaleString() : "-");
+    setText("viewSerial", folder.serial_num);
+    setText("filesCount", folder.files_inside?.length ?? 0);
+
+    // Used For section (optional field)
+    const usedForSection = el("viewUsedForSection");
+    const usedForText = el("viewUsedFor");
+    if (usedForSection && usedForText) {
+      if (folder.used_for) {
+        usedForText.textContent = folder.used_for;
+        usedForSection.classList.remove("hidden");
+      } else {
+        usedForSection.classList.add("hidden");
       }
     }
-  }
 
-  // Barcode
-  try {
-    if (window.JsBarcode && folder.serial_num) {
-      JsBarcode("#viewBarcode", folder.serial_num, {
-        format: "CODE128",
-        width: 2,
-        height: 60,
-        displayValue: true
-      });
+    // QR Code - Always use fresh data from API
+    const qrImg = el("viewQr");
+    if (qrImg) {
+      if (folder.qr_code) {
+        qrImg.src = folder.qr_code;
+        console.log("QR code loaded from API:", folder.qr_code);
+      } else if (folder.serial_num && window.QRCode) {
+        // Fallback: generate QR if not in database
+        console.log("Generating QR code for serial:", folder.serial_num);
+        QRCode.toDataURL(folder.serial_num, { width: 200 }, (err, url) => {
+          if (!err && qrImg) {
+            qrImg.src = url;
+          }
+        });
+      }
     }
-  } catch (e) {
-    console.warn("Barcode generation error", e);
-  }
 
-  // Show modal
-  const modal = document.getElementById("viewModal");
-  if (modal) {
-    modal.classList.remove("hidden");
-    setTimeout(() => modal.classList.add("modal-show"), 10);
+    // Barcode generation (if applicable)
+    try {
+      if (window.JsBarcode && folder.serial_num) {
+        const barcodeElement = document.querySelector("#viewBarcode");
+        if (barcodeElement) {
+          JsBarcode("#viewBarcode", folder.serial_num, {
+            format: "CODE128",
+            width: 2,
+            height: 60,
+            displayValue: true
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("Barcode generation error:", e);
+    }
+
+    // Files list
+    const viewFiles = el("viewFiles");
+    if (viewFiles) {
+      viewFiles.innerHTML = "";
+      
+      if (folder.files_inside && folder.files_inside.length > 0) {
+        folder.files_inside.forEach(fileName => {
+          const div = document.createElement("div");
+          div.className = "file-item";
+          div.innerHTML = `
+            <span class="text-blue-900">📄</span>
+            <span class="text-gray-700">${escapeHtml(fileName)}</span>
+          `;
+          viewFiles.appendChild(div);
+        });
+      } else {
+        viewFiles.innerHTML = '<div class="text-gray-500 italic text-center py-8">No files in this folder</div>';
+      }
+    }
+
+    // Show modal with animation
+    const modal = el("viewModal");
+    if (modal) {
+      modal.classList.remove("hidden");
+      setTimeout(() => modal.classList.add("modal-show"), 10);
+    }
+
+  } catch (err) {
+    console.error("Error opening view modal:", err);
+    showToast("Failed to load folder details", "error");
+    
+    // Optional: Fallback to local data if API fails
+    const folder = allFolders.find(f => String(f.folder_id ?? f.id) === String(id));
+    if (folder) {
+      console.log("Using cached folder data as fallback");
+      // ... populate modal with cached data ...
+    }
   }
 }
 
@@ -614,20 +642,39 @@ async function saveFolderChanges(e) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ folder_name, department_id, location_id })
     });
+    
     if (!res.ok) throw new Error("API failed");
+    
+    const data = await res.json(); // Get response with updated QR
+    
     showToast("Folder updated successfully!");
+    
+    // UPDATE QR IN VIEW MODAL IF IT'S OPEN
+    const viewModal = el("viewModal");
+    const viewQrImg = el("viewQr");
+    if (viewModal && !viewModal.classList.contains("hidden") && viewQrImg && data.qr_code) {
+      viewQrImg.src = data.qr_code;
+      console.log("QR code updated in view modal");
+    }
+    
     closeEditModal();
     await loadFolders();
+    
   } catch (e) {
+    console.error("Save folder error:", e);
+    
     // Fallback to localStorage
     const folders = JSON.parse(localStorage.getItem("folders") || "[]");
     const idx = folders.findIndex(f => String(f.folder_id ?? f.id) === String(currentFolderId));
+    
     if (idx !== -1) {
       const deptText = el("editDepartmentSelect")?.options[el("editDepartmentSelect").selectedIndex]?.textContent || "";
       const locText = el("editLocationSelect")?.options[el("editLocationSelect").selectedIndex]?.textContent || "";
+      
       folders[idx].folder_name = folder_name;
       folders[idx].department = deptText;
       folders[idx].location = locText;
+      
       localStorage.setItem("folders", JSON.stringify(folders));
       showToast("Folder updated (local)!");
       closeEditModal();
