@@ -83,15 +83,31 @@ exports.createFolder = async (req, res) => {
     }
 
     // 🔹 Generate QR code
-    const baseUrl = process.env.BASE_URL || "http://localhost:5000";
-    const qrUrl = `${baseUrl}/folder/view/${folder_id}`;
-    const qrDir = path.join(__dirname, "../public/qrcodes");
-    if (!fs.existsSync(qrDir)) fs.mkdirSync(qrDir, { recursive: true });
+        let fileNames = "No files";
+        if (file_ids.length > 0) {
+          const [files] = await db1.query(
+            `SELECT file_name FROM file WHERE file_id IN (?)`,
+            [file_ids]
+          );
+          fileNames = files.map(f => f.file_name).join(", ");
+        }
 
-    const qrFilename = `folder_${Date.now()}.png`;
-    const qrPath = path.join(qrDir, qrFilename);
-    await QRCode.toFile(qrPath, qrUrl);
-    const qr_code = `/qrcodes/${qrFilename}`;
+        // 🔹 Generate QR code with full data
+        const qrText = `
+        Serial Number: ${serial_num}
+        Folder Title: ${folder_name}
+        Department: ${departmentName}
+        Location: ${locationName}
+        Files: ${fileNames}
+        `;
+
+        const qrDir = path.join(__dirname, "../public/qrcodes");
+        if (!fs.existsSync(qrDir)) fs.mkdirSync(qrDir, { recursive: true });
+
+        const qrFilename = `folder_${Date.now()}.png`;
+        const qrPath = path.join(qrDir, qrFilename);
+        await QRCode.toFile(qrPath, qrText);
+        const qr_code = `/qrcodes/${qrFilename}`;
 
     // 🔹 Save QR path
     await db1.query("UPDATE folder SET qr_code = ? WHERE folder_id = ?", [qr_code, folder_id]);
@@ -271,101 +287,91 @@ exports.updateFolder = async (req, res) => {
     const { folder_id } = req.params;
     const { folder_name, department_id, location_id, file_ids = [] } = req.body;
 
-    // 1️⃣ Load existing folder to get serial & old QR
+    // 1️⃣ Load existing folder
     const [[existing]] = await db1.query(
       "SELECT serial_num, qr_code FROM folder WHERE folder_id=?",
       [folder_id]
     );
+    if (!existing) return res.status(404).json({ error: "Folder not found" });
 
-    if (!existing) {
-      return res.status(404).json({ error: "Folder not found" });
-    }
-
-    const oldQr = existing.qr_code;
-
-    // 2️⃣ Get updated department name
+    // 2️⃣ Get department name
     const [[dept]] = await db2.query(
       "SELECT department FROM tref_department WHERE department_id=?",
       [department_id]
     );
     const departmentName = dept ? dept.department : "N/A";
 
-    // 3️⃣ Get updated location name
+    // 3️⃣ Get location name
     const [[loc]] = await db1.query(
       "SELECT location_name FROM locations WHERE location_id=?",
       [location_id]
     );
     const locationName = loc ? loc.location_name : "N/A";
 
-    // 4️⃣ Update main folder table
-    await db1.query(
-      "UPDATE folder SET folder_name=?, department_id=?, location_id=?, updated_at=NOW() WHERE folder_id=?",
-      [folder_name, department_id, location_id, folder_id]
-    );
-
-    // 5️⃣ Refresh folder files
-    await db1.query("DELETE FROM folder_files WHERE folder_id=?", [folder_id]);
-    for (const fid of file_ids) {
-      await db1.query(
-        "INSERT INTO folder_files (folder_id, file_id) VALUES (?, ?)",
-        [folder_id, fid]
-      );
+    // 4️⃣ Delete old QR code if exists
+    if (existing.qr_code) {
+      const oldQrPath = path.join(__dirname, "../public", existing.qr_code);
+      if (fs.existsSync(oldQrPath)) fs.unlinkSync(oldQrPath);
     }
 
-    // 6️⃣ Load updated file names for QR
+    // 5️⃣ Get updated file names
     let fileNames = "No files";
     if (file_ids.length > 0) {
+      const placeholders = file_ids.map(() => "?").join(",");
       const [files] = await db1.query(
-        `SELECT file_name FROM file WHERE file_id IN (?)`,
-        [file_ids]
+        `SELECT file_name FROM file WHERE file_id IN (${placeholders})`,
+        file_ids
       );
-      fileNames = files.map(f => f.file_name).join(", ");
-    }
-
-    // 7️⃣ Delete old QR file
-    if (oldQr) {
-      const oldQrPath = path.join(__dirname, "../public", oldQr);
-      if (fs.existsSync(oldQrPath)) {
-        fs.unlinkSync(oldQrPath);
+      if (files.length > 0) {
+        fileNames = files.map(f => f.file_name).join(", ");
       }
     }
 
-    // 8️⃣ Build new QR content
-    const qrText = `
-Serial Number: ${existing.serial_num}
-Folder Title: ${folder_name}
-Department: ${departmentName}
-Location: ${locationName}
-Files: ${fileNames}
-`;
+    // 6️⃣ Generate QR text
+    const qrText = [
+      `Serial: ${existing.serial_num}`,
+      `Folder: ${folder_name}`,
+      `Department: ${departmentName}`,
+      `Location: ${locationName}`,
+      `Files: ${fileNames}`
+    ].join("\n").trim();
 
-    // 9️⃣ Generate new QR file
+    // Ensure QR directory exists
     const qrDir = path.join(__dirname, "../public/qrcodes");
     if (!fs.existsSync(qrDir)) fs.mkdirSync(qrDir, { recursive: true });
 
-    const qrFilename = `folder_${folder_id}_${Date.now()}.png`;
+    // 7️⃣ Generate new QR
+    const qrFilename = `folder_${Date.now()}.png`;
     const qrPath = path.join(qrDir, qrFilename);
-
     await QRCode.toFile(qrPath, qrText);
+    const qr_code = `/qrcodes/${qrFilename}`;
 
-    const newQr = `/qrcodes/${qrFilename}`;
-
-    // 🔟 Save new QR path
+    // 8️⃣ Update folder table
     await db1.query(
-      "UPDATE folder SET qr_code=? WHERE folder_id=?",
-      [newQr, folder_id]
+      "UPDATE folder SET folder_name=?, department_id=?, location_id=?, qr_code=?, updated_at=NOW() WHERE folder_id=?",
+      [folder_name, department_id, location_id, qr_code, folder_id]
     );
+
+    // 9️⃣ Update folder_files table
+    await db1.query("DELETE FROM folder_files WHERE folder_id=?", [folder_id]);
+    if (file_ids.length > 0) {
+      const values = file_ids.map(fid => [folder_id, fid]);
+      await db1.query("INSERT INTO folder_files (folder_id, file_id) VALUES ?", [values]);
+    }
 
     res.json({
       message: "Folder updated successfully",
-      qr_code: newQr,
+      folder_id,
+      qr_code,
+      files_inside: file_ids.length ? file_ids.join(", ") : "No files"
     });
 
   } catch (err) {
-    console.error("Update error:", err);
-    res.status(500).json({ error: "Server error" });
+    console.error("❌ Error updating folder:", err);
+    res.status(500).json({ error: "Server error", details: err.message });
   }
 };
+
 
 
 // =====================================
@@ -434,6 +440,3 @@ exports.getLatestFolder = async (req, res) => {
     res.status(500).json({ error: "Server error", details: err.message });
   }
 };
-
-
-

@@ -44,7 +44,7 @@ exports.login = async (req, res) => {
     // 🔹 Determine role based on userlevel
     let role = "staff";
     if ([].includes(user.userlevel)) role = "super_admin";
-    else if ([2,11,12,28,36].includes(user.userlevel)) role = "admin";
+    else if ([-1,2,11,12,28,36].includes(user.userlevel)) role = "admin";
     else if ([13,14,25,35].includes(user.userlevel)) role = "HR";
     
 

@@ -20,8 +20,8 @@ const STATUS_MAP = {
   1: { label: 'Pending', class: 'status-pending', value: 'pending' },
   2: { label: 'Rejected (Available)', class: 'status-rejected', value: 'rejected' },
   3: { label: 'Approved', class: 'status-approved', value: 'approved' },
-  4: { label: 'Taken Out (Unavailable)', class: 'status-taken-out', value: 'taken-out' },
-  5: { label: 'Returned (Available)', class: 'status-available', value: 'available' }
+  5: { label: 'Taken Out (Unavailable)', class: 'status-returned', value: 'taken-out' },
+  4: { label: 'Returned (Available)', class: 'status-available', value: 'available' }
 };
 
 // ============================
@@ -283,7 +283,7 @@ function getActionButton(req) {
         </button>
       `;
       
-    case 4:
+    case 5:
       return `
         <button onclick="returnFile(${req.move_id}, event)" 
           class="btn-warning">
@@ -291,7 +291,7 @@ function getActionButton(req) {
         </button>
       `;
       
-    case 5:
+    case 4:
       return '<span class="text-gray-500 text-xs">File Available</span>';
       
     default:
@@ -463,8 +463,8 @@ function updateStats(requests) {
       case 1: stats.pending++; break;
       case 2: stats.rejected++; break;
       case 3: stats.approved++; break;
-      case 4: stats.takenOut++; break;
-      case 5: stats.available++; break;
+      case 5: stats.takenOut++; break;
+      case 4: stats.available++; break;
     }
   });
 
