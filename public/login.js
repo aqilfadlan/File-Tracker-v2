@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } else if (role === "admin") {
         window.location.href = "/html/admin/admin.html";
       } else if (role === "HR") {
-        window.location.href = "/html/HR/hr.html";
+        window.location.href = "/html/admin/admin.html";
       } else if (role === "staff") {
         window.location.href = "/html/staff/staff.html";
       } else {

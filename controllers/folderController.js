@@ -1,15 +1,3 @@
-// const { db1, db2 } = require("../db");
-// const path = require("path");
-// const fs = require("fs");
-// const QRCode = require("qrcode");
-// const sessionUser = req.session.user;
-
-// if (!sessionUser) return res.status(401).json({ error: "Unauthorized" });
-// if (!folder_name) return res.status(400).json({ error: "Folder name is required" });
-// if (!department_id) return res.status(400).json({ error: "Department ID is required" });
-// if (!location_id) return res.status(400).json({ error: "Location ID is required" });
-
-
 
 // =====================================
 // CREATE FOLDER — REFACTORED
@@ -31,29 +19,26 @@ exports.createFolder = async (req, res) => {
 
     // 🔹 Determine department
     let finalDepartmentId = department_id;
-
-    // Staff is restricted to their department
-    if (sessionUser.userlevel === 3) { // assuming 3 = staff
+    if (sessionUser.userlevel === 3) { // staff
       finalDepartmentId = sessionUser.usr_dept;
     } else if (!department_id) {
       return res.status(400).json({ error: "Department ID is required for non-staff users" });
     }
 
-    // 🔹 Get department name from DB2
+    // 🔹 Get department and location names
     const [[dept]] = await db2.query(
       "SELECT department FROM tref_department WHERE department_id = ?",
       [finalDepartmentId]
     );
-    const departmentName = dept ? dept.department : "N/A";
-
-    // 🔹 Get location name from DB1
     const [[loc]] = await db1.query(
       "SELECT location_name FROM locations WHERE location_id = ?",
       [location_id]
     );
+
+    const departmentName = dept ? dept.department : "N/A";
     const locationName = loc ? loc.location_name : "N/A";
 
-    // 🔹 Generate folder serial: SGV/2025/DEP/001
+    // 🔹 Generate serial number: SGV/2025/DEP/001
     const deptInitials = departmentName.substring(0, 3).toUpperCase();
     const [last] = await db1.query(
       "SELECT MAX(folder_id) AS max_id FROM folder WHERE department_id = ?",
@@ -72,7 +57,7 @@ exports.createFolder = async (req, res) => {
     );
     const folder_id = insertResult.insertId;
 
-    // 🔹 Insert linked files if any
+    // 🔹 Link files if any
     if (Array.isArray(file_ids) && file_ids.length > 0) {
       for (const fid of file_ids) {
         await db1.query(
@@ -82,36 +67,47 @@ exports.createFolder = async (req, res) => {
       }
     }
 
-    // 🔹 Generate QR code
-        let fileNames = "No files";
-        if (file_ids.length > 0) {
-          const [files] = await db1.query(
-            `SELECT file_name FROM file WHERE file_id IN (?)`,
-            [file_ids]
-          );
-          fileNames = files.map(f => f.file_name).join(", ");
-        }
+    // 🔹 Get file names for QR
+    let fileNames = "No files";
+    if (file_ids.length > 0) {
+      const [files] = await db1.query(
+        "SELECT file_name FROM file WHERE file_id IN (?)",
+        [file_ids]
+      );
+      if (files.length > 0) fileNames = files.map(f => f.file_name).join(", ");
+    }
 
-        // 🔹 Generate QR code with full data
-        const qrText = `
-        Serial Number: ${serial_num}
-        Folder Title: ${folder_name}
-        Department: ${departmentName}
-        Location: ${locationName}
-        Files: ${fileNames}
-        `;
+    // 🔹 Generate QR text (single-line)
+    const qrText = [
+        `Serial:${serial_num}`,
+        `Folder:${folder_name}`,
+        `Dept:${departmentName}`,
+        `Location:${locationName}`,
+        `Files:${fileNames}`
+      ].join('|').trim();
+    console.log("[QR CREATE] QR Text:", qrText);
 
-        const qrDir = path.join(__dirname, "../public/qrcodes");
-        if (!fs.existsSync(qrDir)) fs.mkdirSync(qrDir, { recursive: true });
+    // 🔹 Generate QR file
+    const qrDir = path.join(__dirname, "../public/qrcodes");
+    if (!fs.existsSync(qrDir)) fs.mkdirSync(qrDir, { recursive: true });
 
-        const qrFilename = `folder_${Date.now()}.png`;
-        const qrPath = path.join(qrDir, qrFilename);
-        await QRCode.toFile(qrPath, qrText);
-        const qr_code = `/qrcodes/${qrFilename}`;
+    const qrFilename = `folder_${Date.now()}.png`;
+    const qrPath = path.join(qrDir, qrFilename);
+    console.log("[QR CREATE] QR Path:", qrPath);
+
+    await QRCode.toFile(qrPath, qrText, {
+      type: "png",
+      width: 400,
+      margin: 4,
+      errorCorrectionLevel: "H"
+    });
+
+    const qr_code = `/qrcodes/${qrFilename}`;
 
     // 🔹 Save QR path
     await db1.query("UPDATE folder SET qr_code = ? WHERE folder_id = ?", [qr_code, folder_id]);
 
+    // 🔹 Return folder info
     res.status(201).json({
       folder_id,
       serial_num,
@@ -119,10 +115,9 @@ exports.createFolder = async (req, res) => {
       department: departmentName,
       location_name: locationName,
       created_at: new Date(),
-      user_id: sessionUser.user_id,
+      user_id: sessionUser.id,
       files_inside: file_ids.length ? file_ids.join(", ") : "No files",
-      qr_code,
-      qr_url: qrUrl
+      qr_code
     });
 
   } catch (err) {
@@ -130,9 +125,6 @@ exports.createFolder = async (req, res) => {
     res.status(500).json({ error: "Server error", details: err.message });
   }
 };
-
-
-
 
 // =====================================
 // VIEW FOLDER PAGE (standalone)
@@ -285,85 +277,65 @@ exports.getFolderById = async (req, res) => {
 exports.updateFolder = async (req, res) => {
   try {
     const { folder_id } = req.params;
-    const { folder_name, department_id, location_id, file_ids = [] } = req.body;
+    const { folder_name, department_id, location_id } = req.body;
 
-    // 1️⃣ Load existing folder
-    const [[existing]] = await db1.query(
-      "SELECT serial_num, qr_code FROM folder WHERE folder_id=?",
-      [folder_id]
-    );
+    // Load existing folder
+    const [[existing]] = await db1.query("SELECT serial_num, qr_code FROM folder WHERE folder_id=?", [folder_id]);
     if (!existing) return res.status(404).json({ error: "Folder not found" });
 
-    // 2️⃣ Get department name
-    const [[dept]] = await db2.query(
-      "SELECT department FROM tref_department WHERE department_id=?",
-      [department_id]
-    );
-    const departmentName = dept ? dept.department : "N/A";
+    // Get department & location names
+    const [[dept]] = await db2.query("SELECT department FROM tref_department WHERE department_id=?", [department_id]);
+    const [[loc]] = await db1.query("SELECT location_name FROM locations WHERE location_id=?", [location_id]);
 
-    // 3️⃣ Get location name
-    const [[loc]] = await db1.query(
-      "SELECT location_name FROM locations WHERE location_id=?",
-      [location_id]
-    );
+    const departmentName = dept ? dept.department : "N/A";
     const locationName = loc ? loc.location_name : "N/A";
 
-    // 4️⃣ Delete old QR code if exists
-    if (existing.qr_code) {
-      const oldQrPath = path.join(__dirname, "../public", existing.qr_code);
-      if (fs.existsSync(oldQrPath)) fs.unlinkSync(oldQrPath);
-    }
+    // Load existing files to preserve
+    const [existingFiles] = await db1.query(
+      "SELECT f.file_name FROM file f JOIN folder_files ff ON f.file_id = ff.file_id WHERE ff.folder_id=?",
+      [folder_id]
+    );
+    const fileNames = existingFiles.length ? existingFiles.map(f => f.file_name).join(", ") : "No files";
 
-    // 5️⃣ Get updated file names
-    let fileNames = "No files";
-    if (file_ids.length > 0) {
-      const placeholders = file_ids.map(() => "?").join(",");
-      const [files] = await db1.query(
-        `SELECT file_name FROM file WHERE file_id IN (${placeholders})`,
-        file_ids
-      );
-      if (files.length > 0) {
-        fileNames = files.map(f => f.file_name).join(", ");
-      }
-    }
-
-    // 6️⃣ Generate QR text
-    const qrText = [
-      `Serial: ${existing.serial_num}`,
-      `Folder: ${folder_name}`,
-      `Department: ${departmentName}`,
-      `Location: ${locationName}`,
-      `Files: ${fileNames}`
-    ].join("\n").trim();
-
-    // Ensure QR directory exists
-    const qrDir = path.join(__dirname, "../public/qrcodes");
-    if (!fs.existsSync(qrDir)) fs.mkdirSync(qrDir, { recursive: true });
-
-    // 7️⃣ Generate new QR
-    const qrFilename = `folder_${Date.now()}.png`;
-    const qrPath = path.join(qrDir, qrFilename);
-    await QRCode.toFile(qrPath, qrText);
-    const qr_code = `/qrcodes/${qrFilename}`;
-
-    // 8️⃣ Update folder table
+    // Update folder info
     await db1.query(
-      "UPDATE folder SET folder_name=?, department_id=?, location_id=?, qr_code=?, updated_at=NOW() WHERE folder_id=?",
-      [folder_name, department_id, location_id, qr_code, folder_id]
+      "UPDATE folder SET folder_name=?, department_id=?, location_id=?, updated_at=NOW() WHERE folder_id=?",
+      [folder_name, department_id, location_id, folder_id]
     );
 
-    // 9️⃣ Update folder_files table
-    await db1.query("DELETE FROM folder_files WHERE folder_id=?", [folder_id]);
-    if (file_ids.length > 0) {
-      const values = file_ids.map(fid => [folder_id, fid]);
-      await db1.query("INSERT INTO folder_files (folder_id, file_id) VALUES ?", [values]);
+    // Update QR code (overwrite existing)
+    if (existing.qr_code) {
+      const safe = (v) => (v ? v.toString() : "N/A");
+      const qrText = [
+        `Serial:${safe(existing.serial_num)}`,
+        `Folder:${safe(folder_name)}`,
+        `Dept:${safe(departmentName)}`,
+        `Location:${safe(locationName)}`,
+        `Files:${safe(fileNames)}`
+      ].join('|');
+      console.log("[QR UPDATE] QR Text:", qrText);
+
+      const qrPath = path.resolve(__dirname, "../public", existing.qr_code);
+      const qrDir = path.dirname(qrPath);
+      if (!fs.existsSync(qrDir)) fs.mkdirSync(qrDir, { recursive: true });
+
+      await QRCode.toFile(qrPath, qrText, {
+        type: "png",
+        width: 400,
+        margin: 4,
+        errorCorrectionLevel: "H"
+      });
+      console.log("[QR UPDATE] QR Path:", qrPath, "Size:", fs.statSync(qrPath).size);
     }
 
     res.json({
       message: "Folder updated successfully",
       folder_id,
-      qr_code,
-      files_inside: file_ids.length ? file_ids.join(", ") : "No files"
+      folder_name,
+      department_id,
+      location_id,
+      files_inside: fileNames,
+      qr_code: existing.qr_code
     });
 
   } catch (err) {

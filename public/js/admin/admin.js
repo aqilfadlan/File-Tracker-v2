@@ -41,13 +41,16 @@ document.addEventListener("DOMContentLoaded", () => {
   // Buttons that show forms
   const registerFolderBtn = el("registerFolderBtn");
   const registerFileBtn = el("registerFileBtn");
+  const existingFileBtn = el("existingFileBtn");
   const folderFormSection = el("folderFormSection");
   const fileFormSection = el("fileFormSection");
+  const existingFormSection = el("existingFormSection");
 
   if (registerFolderBtn) {
     registerFolderBtn.addEventListener("click", () => {
       folderFormSection?.classList.remove("hidden");
       fileFormSection?.classList.add("hidden");
+      existingFormSection?.classList.add("hidden");
       generateSerialNumber();
     });
   }
@@ -55,9 +58,21 @@ document.addEventListener("DOMContentLoaded", () => {
     registerFileBtn.addEventListener("click", () => {
       fileFormSection?.classList.remove("hidden");
       folderFormSection?.classList.add("hidden");
+      existingFormSection?.classList.add("hidden");
       loadFoldersForFileRegistration();
     });
   }
+  if (existingFileBtn) {
+  existingFileBtn.addEventListener("click", async () => {
+    fileFormSection?.classList.add("hidden");
+    folderFormSection?.classList.add("hidden");
+    existingFormSection?.classList.remove("hidden");
+
+    await loadFoldersForExistingFile(); // load options
+    bindExistingFolderAutoFill();       // bind auto-fill
+  });
+}
+
 
   // Cancel buttons
   el("cancelFolderBtn")?.addEventListener("click", cancelRegistration);
@@ -67,6 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
   el("folderForm")?.addEventListener("submit", createFolder);
   el("fileForm")?.addEventListener("submit", createFile);
   el("editFolderForm")?.addEventListener("submit", saveFolderChanges);
+  el("existingForm")?.addEventListener("submit", createExisting)
 
   // Filters and search
   el("searchBtn")?.addEventListener("click", applyFilters);
@@ -120,8 +136,10 @@ document.addEventListener("DOMContentLoaded", () => {
 function cancelRegistration() {
   el("folderForm")?.reset();
   el("fileForm")?.reset();
+  el("existingForm")?.reset();
   el("folderFormSection")?.classList.add("hidden");
   el("fileFormSection")?.classList.add("hidden");
+  el("existingFormSection")?.classList.add("hidden");
 }
 
 // ---------------------------
@@ -440,9 +458,6 @@ function toggleFiles(event, folderId) {
 // ---------------------------
 // Open View Modal
 // ---------------------------
-// ---------------------------
-// Open View Modal
-// ---------------------------
 async function openViewModal(id) {
   console.log("openViewModal called with id:", id);
 
@@ -570,55 +585,112 @@ function closeViewModal() {
 // ---------------------------
 // Open Edit Modal
 // ---------------------------
-function openEditModal(id) {
-  console.log("openEditModal called with id:", id);
-  currentFolderId = id;
-  const folder = allFolders.find(f => String(f.folder_id ?? f.id) === String(id));
-  if (!folder) {
-    console.error("Folder not found:", id);
-    return showToast("Folder not found", "error");
-  }
+async function openEditModal(folderId) {
+  try {
+    // Fetch folder data
+    const res = await fetch(`/api/folder/${folderId}`);
+    if (!res.ok) throw new Error("Failed to fetch folder data");
+    const folder = await res.json();
 
-  console.log("Found folder for edit:", folder);
+    // Get modal elements
+    const editModal = document.getElementById("editModal");
+    const folderNameInput = document.getElementById("editFolderName");
+    const deptSelect = document.getElementById("editDepartmentSelect");
+    const locSelect = document.getElementById("editLocationSelect");
+    const filesContainer = document.getElementById("editFilesList");
+    const editForm = document.getElementById("editFolderForm");
 
-  el("editFolderName").value = folder.folder_name || "";
-  
-  // Set department
-  const dept = el("editDepartmentSelect");
-  if (dept) {
-    for (let i = 0; i < dept.options.length; i++) {
-      if (dept.options[i].textContent === folder.department) {
-        dept.selectedIndex = i;
-        break;
-      }
+    // Safety checks
+    if (!editModal || !folderNameInput || !deptSelect || !locSelect || !filesContainer || !editForm) {
+      console.error("Missing modal elements");
+      return;
     }
-  }
 
-  // Set location
-  const loc = el("editLocationSelect");
-  if (loc) {
-    for (let i = 0; i < loc.options.length; i++) {
-      if (loc.options[i].textContent === (folder.location_name || folder.location)) {
-        loc.selectedIndex = i;
-        break;
-      }
+    // ⭐ Set dataset folder ID so saveFolderChanges() works
+    editForm.dataset.folderId = folderId;
+
+    // Fill folder data
+    folderNameInput.value = folder.folder_name || "";
+    deptSelect.value = folder.department_id || "";
+    locSelect.value = folder.location_id || "";
+
+    // Fill files inside folder
+    filesContainer.innerHTML = "";
+
+    if (folder.files_inside?.length > 0) {
+      folder.files_inside.forEach((fileName, i) => {
+        const fileId = folder.file_ids[i];
+
+        const div = document.createElement("div");
+        div.className = "file-item flex justify-between items-center bg-white p-2 rounded border";
+
+        div.innerHTML = `
+          <span>${fileName}</span>
+          <button 
+            type="button"
+            class="text-red-600 hover:text-red-800 remove-file-btn"
+            data-file-id="${fileId}"
+          >✖</button>
+        `;
+
+        filesContainer.appendChild(div);
+      });
+    } else {
+      filesContainer.innerHTML = `
+        <div class="text-gray-500 italic py-2">No files in this folder</div>
+      `;
     }
-  }
 
-  // Show modal
-  const modal = el("editModal");
-  if (modal) {
-    modal.classList.remove("hidden");
-    setTimeout(() => modal.classList.add("modal-show"), 10);
+    // ⭐ Show modal with animation
+    editModal.classList.remove("hidden");
+    setTimeout(() => editModal.classList.add("modal-show"), 10);
+
+    // Attach remove events
+    filesContainer.querySelectorAll(".remove-file-btn").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        const fileId = e.currentTarget.dataset.fileId;
+        const fileDiv = e.currentTarget.closest(".file-item");
+
+        if (!fileId || !fileDiv) return;
+
+        try {
+          const unlinkRes = await fetch(`/api/files/${fileId}/unlink`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ folder_id: null })
+          });
+
+          if (!unlinkRes.ok) throw new Error("Failed to unlink file");
+
+          fileDiv.remove();
+          showToast("File removed from folder", "success");
+
+        } catch (err) {
+          console.error(err);
+          showToast("Error removing file", "error");
+        }
+      });
+    });
+
+  } catch (err) {
+    console.error(err);
+    showToast("Failed to open edit modal", "error");
   }
 }
+
+
 
 function closeEditModal() {
   const modal = el("editModal");
   currentFolderId = null;
   if (!modal) return;
+
   modal.classList.remove("modal-show");
-  setTimeout(() => modal.classList.add("hidden"), 200);
+
+  setTimeout(() => {
+    modal.classList.add("hidden");
+    location.reload(); 
+  }, 200); 
 }
 
 // ---------------------------
@@ -626,63 +698,80 @@ function closeEditModal() {
 // ---------------------------
 async function saveFolderChanges(e) {
   e.preventDefault();
-  if (!currentFolderId) return;
 
-  const folder_name = el("editFolderName")?.value?.trim();
-  const department_id = el("editDepartmentSelect")?.value;
-  const location_id = el("editLocationSelect")?.value;
-  
-  if (!folder_name || !department_id || !location_id) {
-    return showToast("Please fill all fields!", "error");
+  const form = document.getElementById("editFolderForm");
+  const folderId = form?.dataset.folderId;
+
+  if (!folderId) {
+    return showToast("Error: No folder selected", "error");
+  }
+
+  const folderName = document.getElementById("editFolderName")?.value.trim();
+  const departmentId = document.getElementById("editDepartmentSelect")?.value;
+  const locationId = document.getElementById("editLocationSelect")?.value;
+
+  if (!folderName || !departmentId || !locationId) {
+    return showToast("Please fill all required fields", "error");
   }
 
   try {
-    const res = await fetch(`/api/folder/${currentFolderId}`, {
+    const res = await fetch(`/api/folder/${folderId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ folder_name, department_id, location_id })
+      body: JSON.stringify({
+        folder_name: folderName,
+        department_id: departmentId,
+        location_id: locationId
+      })
     });
-    
-    if (!res.ok) throw new Error("API failed");
-    
-    const data = await res.json(); // Get response with updated QR
-    
-    showToast("Folder updated successfully!");
-    
-    // UPDATE QR IN VIEW MODAL IF IT'S OPEN
-    const viewModal = el("viewModal");
-    const viewQrImg = el("viewQr");
-    if (viewModal && !viewModal.classList.contains("hidden") && viewQrImg && data.qr_code) {
-      viewQrImg.src = data.qr_code;
-      console.log("QR code updated in view modal");
-    }
-    
+
+    if (!res.ok) throw new Error("Failed to save folder changes");
+
+    showToast("Folder updated successfully", "success");
+
+    // Close modal with animation
     closeEditModal();
-    await loadFolders();
-    
-  } catch (e) {
-    console.error("Save folder error:", e);
-    
-    // Fallback to localStorage
-    const folders = JSON.parse(localStorage.getItem("folders") || "[]");
-    const idx = folders.findIndex(f => String(f.folder_id ?? f.id) === String(currentFolderId));
-    
-    if (idx !== -1) {
-      const deptText = el("editDepartmentSelect")?.options[el("editDepartmentSelect").selectedIndex]?.textContent || "";
-      const locText = el("editLocationSelect")?.options[el("editLocationSelect").selectedIndex]?.textContent || "";
-      
-      folders[idx].folder_name = folder_name;
-      folders[idx].department = deptText;
-      folders[idx].location = locText;
-      
-      localStorage.setItem("folders", JSON.stringify(folders));
-      showToast("Folder updated (local)!");
-      closeEditModal();
-      await loadFolders();
-    } else {
-      showToast("Folder not found", "error");
-    }
+
+    // Reload page or refresh table after modal closes
+    setTimeout(() => location.reload(), 250);
+
+  } catch (err) {
+    console.error(err);
+    showToast("Error saving folder changes", "error");
   }
+}
+
+
+function addFileToEditModal(file) {
+  const filesContainer = document.getElementById("editFilesContainer");
+  if (!filesContainer) return;
+
+  const div = document.createElement("div");
+  div.className = "file-item flex justify-between items-center gap-2";
+  div.innerHTML = `
+    <span>${file.name}</span>
+    <button type="button" class="text-red-600 hover:text-red-800 remove-file-btn" data-file-id="${file.id}">✖</button>
+  `;
+  filesContainer.appendChild(div);
+
+  div.querySelector(".remove-file-btn")?.addEventListener("click", async (e) => {
+    const fileId = e.currentTarget.dataset.fileId;
+    try {
+      const delRes = await fetch(`/api/files/${fileId}`, { method: "DELETE" });
+      if (!delRes.ok) throw new Error("Failed to delete file");
+      e.currentTarget.parentElement.remove();
+    } catch (err) {
+      console.error(err);
+      showToast("Error removing file", "error");
+    }
+  });
+}
+
+// Helper: escape HTML to prevent injection
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 // ---------------------------
@@ -833,6 +922,218 @@ async function createFile(e) {
     cancelRegistration();
     await loadFolders();
   }
+}
+
+
+// ---------------------------
+// Create Existing File
+// ---------------------------
+async function createExisting(e) {
+  e.preventDefault();
+
+  const file_id = el("existingFileSelect")?.value;
+  const folder_id = el("existingFileFolderSelect")?.value;
+  const description = el("existingFileDescription")?.value?.trim() || "";
+
+  if (!file_id || !folder_id) {
+    return showToast("Please select a folder and file!", "error");
+  }
+
+  try {
+    // ✅ Await the fetch response
+    const res = await fetch("/api/files/existing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_id, folder_id })
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "API failed");
+    }
+
+    const data = await res.json();
+    showToast("Existing file successfully added!");
+
+    el("existingForm")?.reset();
+    cancelRegistration();
+    await loadFolders();
+
+  } catch (err) {
+    console.error("Error adding existing file:", err);
+
+    // Fallback to localStorage
+    const files = JSON.parse(localStorage.getItem("files") || "[]");
+    files.push({ 
+      file_id: Date.now(), 
+      file_name: el("existingFileSelect")?.selectedOptions[0]?.text || "Unknown",
+      folder_id, 
+      description, 
+      created_at: new Date().toISOString() 
+    });
+    localStorage.setItem("files", JSON.stringify(files));
+
+    const folders = JSON.parse(localStorage.getItem("folders") || "[]");
+    const folder = folders.find(f => String(f.folder_id) === String(folder_id));
+    if (folder) {
+      folder.files_inside = folder.files_inside || [];
+      folder.files_inside.push(el("existingFileSelect")?.selectedOptions[0]?.text || "Unknown");
+      localStorage.setItem("folders", JSON.stringify(folders));
+    }
+
+    showToast("Existing file added (local)!");
+    el("existingForm")?.reset();
+    cancelRegistration();
+    await loadFolders();
+  }
+}
+
+
+function populateExistingFileSelect(folderId = null) {
+  fetch("/api/files/files-for-existing")
+    .then(res => res.json())
+    .then(files => {
+      const fileSelect = el("existingFileSelect");
+      fileSelect.innerHTML = "<option value=''>Select File</option>";
+
+      // Separate unassigned files from assigned files
+      const unassigned = [];
+      const assigned = [];
+
+      files.forEach(f => {
+        // If folderId is null, we consider files with no folder as unassigned
+        if (!f.folder_id) {
+          unassigned.push(f);
+        } else if (folderId === null || f.folder_id === folderId) {
+          assigned.push(f);
+        }
+      });
+
+      // Append unassigned first
+      unassigned.concat(assigned).forEach(f => {
+        const option = document.createElement("option");
+        option.value = f.file_id;
+        option.textContent = f.file_name;
+        fileSelect.appendChild(option);
+      });
+    })
+    .catch(err => console.error("Failed to load files:", err));
+}
+
+// Update file list when folder changes
+el("existingFileFolderSelect")?.addEventListener("change", function() {
+  const folderId = parseInt(this.value) || null;
+  populateExistingFileSelect(folderId);
+});
+
+// ---------------------------
+// Auto-fill Existing File form
+// ---------------------------
+function bindExistingFolderAutoFill() {
+  const folderSelect = el("existingFileFolderSelect");
+  const deptInput = el("existingFileDepartment");
+  const locInput = el("existingFileLocation");
+
+  if (!folderSelect || !deptInput || !locInput) return;
+
+  folderSelect.addEventListener("change", function() {
+    const selectedOption = this.options[this.selectedIndex];
+    if (!selectedOption) {
+      deptInput.value = "";
+      locInput.value = "";
+      return;
+    }
+
+    // Auto-fill department and location from data attributes
+    deptInput.value = selectedOption.dataset.department || "";
+    locInput.value = selectedOption.dataset.location || "";
+  });
+}
+
+// ---------------------------
+// Load folders and files for existing registration
+// ---------------------------
+async function loadFoldersForExistingFile() {
+  const folderSelect = el("existingFileFolderSelect");
+  const fileSelect = el("existingFileSelect");
+  if (!folderSelect || !fileSelect) return;
+
+  folderSelect.innerHTML = "<option value=''>Loading folders...</option>";
+  fileSelect.innerHTML = "<option value=''>Select File</option>";
+
+  try {
+    const res = await fetch("/api/folder");
+    const folders = res.ok ? await res.json() : JSON.parse(localStorage.getItem("folders") || "[]");
+
+    const activeFolders = folders.filter(f => f.is_active !== false);
+
+    folderSelect.innerHTML = "<option value=''>Select Folder</option>";
+    activeFolders.forEach(f => {
+      const o = document.createElement("option");
+      o.value = f.folder_id;
+      o.textContent = `${f.serial_num || "-"} - ${f.folder_name || "-"}`;
+      o.dataset.files = JSON.stringify(f.files_inside || []);
+      o.dataset.department = f.department || "";   // ✅ add department
+      o.dataset.location = f.location_name || f.location || ""; // ✅ add location
+      folderSelect.appendChild(o);
+    });
+
+    // Reset file select
+    fileSelect.innerHTML = "<option value=''>Select File</option>";
+
+  } catch (err) {
+    console.error("Failed to load folders for existing file:", err);
+    folderSelect.innerHTML = "<option value=''>Failed to load folders</option>";
+    fileSelect.innerHTML = "<option value=''>Select File</option>";
+  }
+}
+
+
+el("existingFileFolderSelect")?.addEventListener("change", function() {
+  const fileSelect = el("existingFileSelect");
+  if (!fileSelect) return;
+
+  fileSelect.innerHTML = "<option value=''>Select File</option>";
+  const selectedOption = this.options[this.selectedIndex];
+  if (!selectedOption || !selectedOption.dataset.files) return;
+
+  const files = JSON.parse(selectedOption.dataset.files);
+  files.forEach(fileName => {
+    const o = document.createElement("option");
+    o.value = fileName; // or some unique file_id if available
+    o.textContent = fileName;
+    fileSelect.appendChild(o);
+  });
+});
+
+// ---------------------------
+// Autofill existing form folder data
+// ---------------------------
+function bindExistingFolderAutoFill() {
+  const folderSelect = el("existingFileFolderSelect");
+  const fileSelect = el("existingFileSelect");
+  const deptInput = el("existingFileDepartment");
+  const locInput = el("existingFileLocation");
+
+  if (!folderSelect || !fileSelect || !deptInput || !locInput) return;
+
+  folderSelect.addEventListener("change", function() {
+    // Auto-fill department & location
+    const opt = folderSelect.options[folderSelect.selectedIndex];
+    deptInput.value = opt?.dataset.department || "";
+    locInput.value = opt?.dataset.location || "";
+
+    // Populate files
+    fileSelect.innerHTML = "<option value=''>Select File</option>";
+    if (!opt?.dataset.files) return;
+    const files = JSON.parse(opt.dataset.files);
+    files.forEach(f => {
+      const o = document.createElement("option");
+      o.value = f;
+      o.textContent = f;
+      fileSelect.appendChild(o);
+    });
+  });
 }
 
 // ---------------------------
@@ -1070,4 +1371,4 @@ function printFolderDetails() {
   window.print(); 
 }
 
-console.log("✅ super_admin.js loaded successfully!");
+console.log("✅ admin.js loaded successfully!");

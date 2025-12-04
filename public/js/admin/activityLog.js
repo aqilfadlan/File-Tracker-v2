@@ -12,6 +12,7 @@ let requestsData = [];
 let originalData = [];
 let currentUser = null;
 let currentRequestId = null;
+const TAKE_OUT_LEVELS = [13, 14, 25, 35];
 
 // ============================
 // 🔹 Status Configuration
@@ -256,48 +257,76 @@ function getStatusBadge(req, statusConfig) {
 // 🔹 Get Action Button Based on Status
 // ============================
 function getActionButton(req) {
-  switch(req.status_id) {
-    case 1:
-      return `
-        <div class="flex items-center justify-center gap-2">
-          <button onclick="approveRequest(${req.move_id}, event)" 
-            class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition">
-            Approve
-          </button>
+  const HR_LEVELS = [13, 14, 25, 35];
+  const canHR = currentUser && HR_LEVELS.includes(Number(currentUser.level));
 
-          <button onclick="openRejectModal(${req.move_id}, event)" 
-            class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition">
-            Reject
-          </button>
-        </div>
-      `;
-      
-    case 2:
-      return '<span class="text-gray-500 text-xs">File Available</span>';
-      
-    case 3:
+  // --- STATUS 1: Pending ---
+  if (req.status_id === 1) {
+    if (canHR) {
+      // HR should NOT approve/reject, only see disabled Approved
       return `
-        <button onclick="takeOutFile(${req.move_id}, event)" 
-          class="btn-info">
-          Mark as Taken Out
+        <button class="px-3 py-1 bg-blue-400 text-white rounded opacity-60 cursor-not-allowed">
+          Approved
         </button>
       `;
-      
-    case 5:
+    }
+
+    // Normal users → Approve + Reject
+    return `
+      <div class="flex items-center justify-center gap-2">
+        <button onclick="approveRequest(${req.move_id}, event)" 
+          class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition">
+          Approve
+        </button>
+
+        <button onclick="openRejectModal(${req.move_id}, event)" 
+          class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition">
+          Reject
+        </button>
+      </div>
+    `;
+  }
+
+  // --- STATUS 2: Rejected (File Available) ---
+  if (req.status_id === 2) {
+    return '<span class="text-gray-500 text-xs">File Available</span>';
+  }
+
+  // --- STATUS 3: Approved ---
+  if (req.status_id === 3) {
+    if (canHR) {
+      return `
+        <button onclick="takeOutFile(${req.move_id}, event)" 
+          class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
+          Taken Out
+        </button>
+      `;
+    }
+    return '<span class="text-gray-400 text-xs">Approved</span>';
+  }
+
+  // --- STATUS 5: Taken Out ---
+  if (req.status_id === 5) {
+    if (canHR) {
       return `
         <button onclick="returnFile(${req.move_id}, event)" 
-          class="btn-warning">
+          class="px-3 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition">
           Return File
         </button>
       `;
-      
-    case 4:
-      return '<span class="text-gray-500 text-xs">File Available</span>';
-      
-    default:
-      return '<span class="text-gray-400 text-xs">-</span>';
+    }
+    return '<span class="text-gray-400 text-xs">Taken Out</span>';
   }
+
+  // --- STATUS 4: Returned (Available Again) ---
+  if (req.status_id === 4) {
+    return '<span class="text-gray-500 text-xs">File Available</span>';
+  }
+
+  return '<span class="text-gray-400 text-xs">-</span>';
 }
+
+
 
 // ============================
 // 🔹 Admin: Approve Request (Status 1 → 3)

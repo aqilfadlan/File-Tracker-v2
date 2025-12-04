@@ -72,6 +72,18 @@ exports.getFileList = async (req, res) => {
   }
 };
 
+exports.getFilesForExisting = async (req, res) => {
+  try {
+    // Example: get only files that are not yet assigned to a folder
+    const [files] = await db1.query(
+      "SELECT * FROM file WHERE folder_id IS NULL"
+    );
+    res.json(files);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch files" });
+  }
+};
 
 
 // =========================
@@ -276,6 +288,63 @@ exports.searchFiles = async (req, res) => {
   } catch (err) {
     console.error("❌ Error searching files:", err);
     res.status(500).json({ error: err.message });
+  }
+};
+
+exports.createExisting = async (req, res) => {
+  const { file_id, folder_id } = req.body;
+  const sessionUser = req.session.user;
+
+  if (!sessionUser) return res.status(401).json({ error: "Unauthorized" });
+  if (!file_id) return res.status(400).json({ error: "file_id is required" });
+  if (!folder_id) return res.status(400).json({ error: "folder_id is required" });
+
+  const connection = await db1.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // 1️⃣ Update folder_id in file table
+    await connection.query(
+      "UPDATE file SET folder_id = ? WHERE file_id = ?",
+      [folder_id, file_id]
+    );
+
+    // 2️⃣ Insert into folder_files table
+    await connection.query(
+      "INSERT INTO folder_files (folder_id, file_id) VALUES (?, ?)",
+      [folder_id, file_id]
+    );
+
+    await connection.commit();
+
+    res.status(200).json({
+      message: "✅ Existing file assigned to folder successfully",
+      file_id,
+      folder_id,
+      updated_by: sessionUser.name,
+    });
+  } catch (err) {
+    await connection.rollback();
+    console.error("❌ Error assigning existing file:", err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    connection.release();
+  }
+};
+
+exports.unlinkFileFromFolder = async (req, res) => {
+  const { fileId } = req.params;
+  try {
+    // 1️⃣ Update file table
+    await db1.query("UPDATE file SET folder_id = NULL WHERE file_id = ?", [fileId]);
+
+    // 2️⃣ Remove from folder_files mapping table
+    await db1.query("DELETE FROM folder_files WHERE file_id = ?", [fileId]);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to unlink file from folder" });
   }
 };
 

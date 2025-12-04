@@ -182,7 +182,7 @@ exports.getFileMovements = async (req, res) => {
 
   try {
     let rows;
-    if (["admin", "super_admin"].includes(user.role)) {
+    if (["admin", "super_admin","HR"].includes(user.role)) {
       [rows] = await db1.query(`
         SELECT fm.*, u.usr_name AS user_name, a.usr_name AS approved_by_name, s.status_name
         FROM file_movement fm
