@@ -167,8 +167,8 @@ exports.createFile = async (req, res) => {
 
     // Insert into file table
 const [result] = await connection.query(
-  "INSERT INTO file (file_name, uploaded_at, user_id) VALUES (?, NOW(), ?)",
-  [file_name, sessionUser.id]  
+  "INSERT INTO file (file_name, uploaded_at, user_id, folder_id) VALUES (?, NOW(), ?, ?)",
+  [file_name, sessionUser.id, folder_id]  
 );
 const fileId = result.insertId;
 

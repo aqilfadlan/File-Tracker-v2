@@ -951,6 +951,34 @@ async function createFile(e) {
   }
 }
 
+async function loadFilesForExisting() {
+  const fileSelect = el("existingFileSelect");
+
+  fileSelect.innerHTML = "<option value=''>Loading files...</option>";
+
+  try {
+    const res = await fetch("/api/files-for-existing"); // MUST match backend
+    const files = res.ok ? await res.json() : [];
+
+    console.log("Files returned from server:", files); // DEBUG
+
+    fileSelect.innerHTML = "<option value=''>Select File</option>";
+
+    // Should list ONLY files with folder_id = null
+    files.forEach(f => {
+      const o = document.createElement("option");
+      o.value = f.file_id;
+      o.textContent = f.file_name;
+      fileSelect.appendChild(o);
+    });
+
+  } catch (err) {
+    console.error("Failed to load files:", err);
+    fileSelect.innerHTML = "<option value=''>Failed to load files</option>";
+  }
+}
+
+
 // ---------------------------
 // Create Existing File
 // ---------------------------
@@ -1050,30 +1078,58 @@ async function loadFoldersForExistingFile() {
 // ---------------------------
 // Autofill existing form folder data
 // ---------------------------
-function bindExistingFolderAutoFill() {
-  const folderSelect = el("existingFileFolderSelect");
-  const fileSelect = el("existingFileSelect");
-  const deptInput = el("existingFileDepartment");
-  const locInput = el("existingFileLocation");
+async function bindExistingFolderAutoFill() {
+  const folderSelect = document.getElementById("existingFileFolderSelect");
+  const fileSelect = document.getElementById("existingFileSelect");
+  const departmentInput = document.getElementById("existingFileDepartment");
+  const locationInput = document.getElementById("existingFileLocation");
 
-  if (!folderSelect || !fileSelect || !deptInput || !locInput) return;
+  if (!folderSelect || !fileSelect || !departmentInput || !locationInput) return;
 
-  folderSelect.addEventListener("change", function() {
-    const opt = folderSelect.options[folderSelect.selectedIndex];
-    deptInput.value = opt?.dataset.department || "";
-    locInput.value = opt?.dataset.location || "";
+  // Remove previous event listener if any to prevent duplication
+  folderSelect.replaceWith(folderSelect.cloneNode(true));
+  const newFolderSelect = document.getElementById("existingFileFolderSelect");
 
-    fileSelect.innerHTML = "<option value=''>Select File</option>";
-    if (!opt?.dataset.files) return;
-    const files = JSON.parse(opt.dataset.files);
-    files.forEach(f => {
-      const o = document.createElement("option");
-      o.value = f;
-      o.textContent = f;
-      fileSelect.appendChild(o);
-    });
+  newFolderSelect.addEventListener("change", async () => {
+    const folderId = newFolderSelect.value;
+
+    // Reset file dropdown
+    fileSelect.innerHTML = '<option value="">Select File</option>';
+    departmentInput.value = "";
+    locationInput.value = "";
+
+    if (!folderId) return;
+
+    try {
+      const res = await fetch(`/api/files/files-for-existing?folder_id=${folderId}`);
+      if (!res.ok) throw new Error("Failed to fetch folder files");
+      const files = await res.json();
+
+      files.forEach(file => {
+        const option = document.createElement("option");
+        option.value = file.file_id;
+        option.textContent = file.file_name;
+        fileSelect.appendChild(option);
+      });
+
+      const folderRes = await fetch(`/api/folder/${folderId}`);
+      if (!folderRes.ok) throw new Error("Failed to fetch folder info");
+      const folder = await folderRes.json();
+
+      departmentInput.value = folder.department_name || "";
+      locationInput.value = folder.location_name || "";
+
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    }
   });
 }
+
+document.addEventListener("DOMContentLoaded", bindExistingFolderAutoFill);
+
+
+
 
 // ---------------------------
 // Load folders for file registration
