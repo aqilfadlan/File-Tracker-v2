@@ -466,18 +466,30 @@ exports.deleteFolder = async (req, res) => {
   try {
     const { folder_id } = req.params;
 
-    const [result] = await db1.query("DELETE FROM folder WHERE folder_id = ?", [folder_id]);
+    // 1️⃣ Remove file-to-folder relationships
+    await db1.query("UPDATE file SET folder_id = NULL WHERE folder_id = ?", [folder_id]);
+
+    // 2️⃣ Remove folder_files mapping
+    await db1.query("DELETE FROM folder_files WHERE folder_id = ?", [folder_id]);
+
+    // 3️⃣ Delete folder
+    const [result] = await db1.query(
+      "DELETE FROM folder WHERE folder_id = ?",
+      [folder_id]
+    );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: "Folder not found" });
     }
 
     res.json({ message: "Folder deleted successfully" });
+
   } catch (err) {
     console.error("Error deleting folder:", err);
     res.status(500).json({ error: "Server error" });
   }
 };
+
 
 // =====================================
 // GET LATEST FOLDER (for Adminpage.js)
