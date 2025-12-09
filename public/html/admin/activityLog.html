@@ -310,33 +310,34 @@
   </div>
 </section>
 
-      <!-- Activity Log Table -->
-      <section class="card">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="section-title text-base md:text-lg">Activity Log</h2>
-        </div>
+<!-- Activity Log Table -->
+<section class="card">
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="section-title text-base md:text-lg">Activity Log</h2>
+  </div>
 
-        <div class="overflow-x-auto rounded-lg border border-gray-200">
-          <table id="requestTable" class="min-w-full text-xs md:text-sm text-center">
-            <thead class="bg-blue-800 text-white uppercase text-xs">
-              <tr>
-                <th class="px-2 md:px-4 py-2 md:py-3 text-center">ID</th>
-                <th class="px-2 md:px-4 py-2 md:py-3 text-center">File Name</th>
-                <th class="px-2 md:px-4 py-2 md:py-3 text-center hidden md:table-cell">Requested By</th>
-                <th class="px-2 md:px-4 py-2 md:py-3 text-center hidden lg:table-cell">Request Date</th>
-                <th class="px-2 md:px-4 py-2 md:py-3 text-center hidden lg:table-cell">Approved By</th>
-                <th class="px-2 md:px-4 py-2 md:py-3 text-center">Status</th>
-                <th class="px-2 md:px-4 py-2 md:py-3 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="requestTableBody" class="divide-y divide-gray-200 bg-white">
-              <!-- Data will be loaded dynamically -->
-            </tbody>
-          </table>
-        </div>
+  <div class="overflow-x-auto rounded-lg border border-gray-200">
+    <table id="requestTable" class="min-w-full text-xs md:text-sm text-center">
+      <thead class="bg-blue-800 text-white uppercase text-xs">
+        <tr>
+          <th class="px-2 md:px-4 py-2 md:py-3 text-center">ID</th>
+          <th class="px-2 md:px-4 py-2 md:py-3 text-center">File Name</th>
+          <th class="px-2 md:px-4 py-2 md:py-3 text-center hidden md:table-cell">Requested By</th>
+          <th class="px-2 md:px-4 py-2 md:py-3 text-center hidden md:table-cell">Department</th>
+          <th class="px-2 md:px-4 py-2 md:py-3 text-center hidden lg:table-cell">Request Date</th>
+          <th class="px-2 md:px-4 py-2 md:py-3 text-center hidden lg:table-cell">Approved By</th>
+          <th class="px-2 md:px-4 py-2 md:py-3 text-center">Status</th>
+          <th class="px-2 md:px-4 py-2 md:py-3 text-center">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="requestTableBody" class="divide-y divide-gray-200 bg-white">
+        <!-- Data will be loaded dynamically -->
+      </tbody>
+    </table>
+  </div>
 
-        <p id="noRequests" class="text-gray-500 text-center mt-4 hidden text-sm">📂 No requests found.</p>
-      </section>
+  <p id="noRequests" class="text-gray-500 text-center mt-4 hidden text-sm">📂 No requests found.</p>
+</section>
 
     </div>
   </main>

@@ -373,6 +373,7 @@ function renderTable(requests) {
       : (req.file_name || "-");
     
     const requestedBy = req.user_name || req.requestedBy || "-";
+    const department = req.department_name || req.department || "-";
     const moveDate = req.move_date ? formatDateTime(req.move_date) : '-';
     const approvedBy = req.approved_by_name || req.approvedBy || '<span class="text-gray-400">-</span>';
     const statusBadge = getStatusBadge(req, statusConfig);
@@ -382,6 +383,7 @@ function renderTable(requests) {
       <td class="px-2 md:px-4 py-2 md:py-3 text-center font-semibold">#${req.move_id}</td>
       <td class="px-2 md:px-4 py-2 md:py-3">${escapeHtml(fileNames)}</td>
       <td class="px-2 md:px-4 py-2 md:py-3 hidden md:table-cell">${escapeHtml(requestedBy)}</td>
+      <td class="px-2 md:px-4 py-2 md:py-3 hidden md:table-cell">${escapeHtml(department)}</td>
       <td class="px-2 md:px-4 py-2 md:py-3 hidden lg:table-cell">${moveDate}</td>
       <td class="px-2 md:px-4 py-2 md:py-3 hidden lg:table-cell">${approvedBy}</td>
       <td class="px-2 md:px-4 py-2 md:py-3 text-center">${statusBadge}</td>

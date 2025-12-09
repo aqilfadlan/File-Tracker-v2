@@ -2,14 +2,43 @@ const el = id => document.getElementById(id);
 let allHistoryData = [];        // all data from API
 let filteredHistoryData = [];   // filtered data for table & CSV
 
+// Status mapping for filters
+const STATUS_MAP = {
+  1: { value: "pending", label: "Pending" },
+  2: { value: "rejected", label: "Rejected" },
+  3: { value: "approved", label: "Approved" },
+  4: { value: "taken-out", label: "Taken Out" },
+  5: { value: "available", label: "Returned" }
+};
 
+// ============================
+// 🔹 Initialize on Page Load
+// ============================
+if (document.readyState === 'loading') {
+  document.addEventListener("DOMContentLoaded", initApp);
+} else {
+  initApp();
+}
+
+async function initApp() {
+  console.log("📄 Initializing app...");
+  
+  // Initialize mobile menu FIRST
+  initMobileMenu();
+  
+  await loadUserInfo();
+  await loadDepartments(); 
+  await loadHistory();
+  setupEventListeners();
+  
+  console.log("✅ App initialized!");
+}
 
 // ==============================
 // LOAD USER INFO
 // ==============================
 async function loadUserInfo() {
     try {
-        // Check if element exists
         const nameDisplay = document.getElementById('userNameDisplay');
         if (!nameDisplay) {
             console.error("userNameDisplay element not found in HTML!");
@@ -32,7 +61,6 @@ async function loadUserInfo() {
             const user = await res.json();
             const userName = user.usr_name || user.username || user.name || 'Admin';
             updateUserDisplay(userName);
-            // Store for future use
             localStorage.setItem('user', JSON.stringify(user));
         } else {
             updateUserDisplay('Admin');
@@ -50,17 +78,11 @@ function updateUserDisplay(userName) {
     }
 }
 
-// Test immediately
-document.addEventListener("DOMContentLoaded", () => {
-    console.log("🚀 DOM Content Loaded - Testing user info...");
-    loadUserInfo();
-});
-
-
-document.addEventListener("DOMContentLoaded", () => {
-    loadHistory();
-    initMobileMenu();
-
+// ==============================
+// ✅ SETUP EVENT LISTENERS
+// ==============================
+function setupEventListeners() {
+    // Logout button
     el("logoutBtn")?.addEventListener("click", async () => {
         if (!confirm("Are you sure you want to logout?")) return;
         try { await fetch("/api/auth/logout", { method: "POST" }); } catch(e){ }
@@ -68,16 +90,23 @@ document.addEventListener("DOMContentLoaded", () => {
         window.location.href = "/login.html";
     });
 
-    // Filters
+    // Filter buttons
     el("filterBtn")?.addEventListener("click", applyFilters);
-    el("resetBtn")?.addEventListener("click", () => {
-        el("filterDateFrom").value = "";
-        el("filterDateTo").value = "";
-        el("searchHistory").value = "";
-        applyFilters();
-    });
+    el("resetBtn")?.addEventListener("click", resetFilters);
+    
+    // Real-time search
+    el("searchRequest")?.addEventListener("input", applyFilters);
+    
+    // Department filter change
+    el("filterDepartment")?.addEventListener("change", applyFilters);
+    
+    // Status filter change
+    el("filterStatus")?.addEventListener("change", applyFilters);
+    
+    // Date filter change
+    el("filterDate")?.addEventListener("change", applyFilters);
 
-    // CSV Export - Fixed ID
+    // CSV Export
     el("exportCSV")?.addEventListener("click", exportCSV);
 
     // Modal close
@@ -90,7 +119,7 @@ document.addEventListener("DOMContentLoaded", () => {
             toggleModal("historyModal", false);
         }
     });
-});
+}
 
 // ==============================
 // MOBILE MENU
@@ -132,7 +161,10 @@ function toggleModal(id, show = true) {
 
 function updateDashboardStats(data) {
     const total = data.length;
-    const returned = data.filter(item => item.status_name?.toLowerCase() === "returned").length;
+    const returned = data.filter(item => {
+        const statusName = item.status_name?.toLowerCase();
+        return statusName === "returned" || item.status_id === 5;
+    }).length;
 
     const now = new Date();
     const thisMonth = data.filter(item => {
@@ -162,7 +194,7 @@ async function loadHistory() {
         if (!res.ok) throw new Error("Failed to fetch history");
 
         allHistoryData = await res.json();
-        filteredHistoryData = [...allHistoryData]; // initially all
+        filteredHistoryData = [...allHistoryData];
 
         renderHistoryTable(filteredHistoryData);
         updateDashboardStats(filteredHistoryData);
@@ -173,32 +205,171 @@ async function loadHistory() {
     }
 }
 
-// ==============================
-// APPLY FILTERS
-// ==============================
+// ============================
+// 🔹 LOAD DEPARTMENTS
+// ============================
+async function loadDepartments() {
+    try {
+        console.log("📦 Fetching departments...");
+        const res = await fetch("/api/departments", {
+            credentials: "include",
+            headers: { "Content-Type": "application/json" }
+        });
+        
+        console.log("📡 Response status:", res.status);
+        if (!res.ok) {
+            console.error("❌ Failed to fetch departments, status:", res.status);
+            throw new Error(`Failed to fetch departments: ${res.status}`);
+        }
+        
+        const departments = await res.json();
+        console.log("📋 Departments received:", departments);
+        
+        const select = el("filterDepartment");
+        
+        if (!select) {
+            console.error("❌ filterDepartment select element not found!");
+            return;
+        }
+        
+        // Clear existing options except "All Departments"
+        select.innerHTML = '<option value="">All Departments</option>';
+        
+        // Check if departments is an array
+        if (!Array.isArray(departments)) {
+            console.error("❌ Departments is not an array:", typeof departments);
+            return;
+        }
+        
+        // Add department options - using the same field name as the working example
+        departments.forEach(dept => {
+            console.log("Adding department:", dept);
+            const option = document.createElement("option");
+            
+            // Match the working example: use dept.department_id and dept.department
+            option.value = dept.department_id;
+            option.textContent = dept.department;
+            select.appendChild(option);
+        });
+        
+        console.log("✅ Loaded departments:", departments.length);
+        console.log("✅ Select options count:", select.options.length);
+    } catch (err) {
+        console.error("❌ Failed to load departments:", err);
+        showToast("Failed to load departments", "error");
+    }
+}
+
+// ============================
+// 🔹 APPLY FILTERS - FIXED VERSION
+// ============================
 function applyFilters() {
-    const fromDate = el("filterDateFrom").value ? new Date(el("filterDateFrom").value) : null;
-    const toDate = el("filterDateTo").value ? new Date(el("filterDateTo").value) : null;
-    const search = el("searchHistory").value.trim().toLowerCase();
+  console.log("🔍 === APPLYING FILTERS ===");
+  
+  const statusFilter = el('filterStatus')?.value;
+  const departmentFilter = el('filterDepartment')?.value;
+  const dateFilter = el('filterDate')?.value;
+  const searchFilter = el('searchRequest')?.value.toLowerCase().trim();
 
-    filteredHistoryData = allHistoryData.filter(item => {
-        const moveDate = item.move_date ? new Date(item.move_date) : null;
+  console.log("📊 Filter values:", {
+    status: statusFilter,
+    department: departmentFilter,
+    date: dateFilter,
+    search: searchFilter
+  });
 
-        const matchDate =
-            (!fromDate || (moveDate && moveDate >= fromDate)) &&
-            (!toDate || (moveDate && moveDate <= toDate));
+  console.log("📦 Original data count:", allHistoryData.length);
+  let filtered = [...allHistoryData];
 
-        const matchSearch =
-            !search ||
-            (item.file_name && item.file_name.toLowerCase().includes(search)) ||
-            (item.user_name && item.user_name.toLowerCase().includes(search)) ||
-            (item.approved_by_name && item.approved_by_name.toLowerCase().includes(search));
-
-        return matchDate && matchSearch;
+  // Status filter
+  if (statusFilter) {
+    const beforeCount = filtered.length;
+    filtered = filtered.filter(r => {
+      const statusName = r.status_name?.toLowerCase();
+      const statusId = r.status_id;
+      
+      // Map status names to filter values
+      if (statusFilter === "pending" && (statusName === "pending" || statusId === 1)) return true;
+      if (statusFilter === "approved" && (statusName === "approved" || statusId === 3)) return true;
+      if (statusFilter === "rejected" && (statusName === "rejected" || statusId === 2)) return true;
+      if (statusFilter === "taken-out" && (statusName === "taken out" || statusId === 4)) return true;
+      if (statusFilter === "available" && (statusName === "returned" || statusId === 5)) return true;
+      
+      return false;
     });
+    console.log(`✅ Status filter: ${beforeCount} → ${filtered.length} records`);
+  }
 
+  // Department filter
+  if (departmentFilter) {
+    const beforeCount = filtered.length;
+    console.log(`🏢 Filtering by department: ${departmentFilter}`);
+    
+    filtered = filtered.filter(r => {
+      return String(r.department_id) === String(departmentFilter);
+    });
+    console.log(`✅ Department filter: ${beforeCount} → ${filtered.length} records`);
+  }
+
+  // Date filter
+  if (dateFilter) {
+    const beforeCount = filtered.length;
+    filtered = filtered.filter(r => {
+      if (!r.move_date) return false;
+      const moveDate = new Date(r.move_date).toISOString().split('T')[0];
+      return moveDate === dateFilter;
+    });
+    console.log(`✅ Date filter: ${beforeCount} → ${filtered.length} records`);
+  }
+
+  // Search filter
+  if (searchFilter) {
+    const beforeCount = filtered.length;
+    filtered = filtered.filter(r => {
+      const fileName = Array.isArray(r.files) 
+        ? r.files.map(f => f.file_name).join(" ").toLowerCase()
+        : (r.file_name || "").toLowerCase();
+      
+      const requestedBy = (r.user_name || r.requestedBy || r.moved_by_name || "").toLowerCase();
+      const folderId = String(r.folder_id || "");
+      const moveId = String(r.move_id || "");
+      
+      return fileName.includes(searchFilter) || 
+             requestedBy.includes(searchFilter) ||
+             folderId.includes(searchFilter) ||
+             moveId.includes(searchFilter);
+    });
+    console.log(`✅ Search filter: ${beforeCount} → ${filtered.length} records`);
+  }
+
+  console.log(`📋 FINAL: ${filtered.length} records after all filters`);
+  console.log("🔍 === FILTER COMPLETE ===\n");
+
+  // Update filtered data for CSV export
+  filteredHistoryData = filtered;
+  
+  renderHistoryTable(filtered);
+  updateDashboardStats(filtered);
+}
+
+// ============================
+// 🔹 RESET FILTERS
+// ============================
+function resetFilters() {
+    console.log("🔄 Resetting filters...");
+    
+    // Clear all filter inputs
+    if (el("filterStatus")) el("filterStatus").value = "";
+    if (el("filterDepartment")) el("filterDepartment").value = "";
+    if (el("filterDate")) el("filterDate").value = "";
+    if (el("searchRequest")) el("searchRequest").value = "";
+    
+    // Reset to show all data
+    filteredHistoryData = [...allHistoryData];
     renderHistoryTable(filteredHistoryData);
     updateDashboardStats(filteredHistoryData);
+    
+    console.log("✅ Filters reset");
 }
 
 // ==============================
@@ -206,14 +377,16 @@ function applyFilters() {
 // ==============================
 function renderHistoryTable(data) {
     const tableBody = el("historyTableBody");
+    const noHistory = el("noHistory");
+    
     tableBody.innerHTML = "";
 
     if (!data.length) {
-        el("noHistory").classList.remove("hidden");
+        if (noHistory) noHistory.classList.remove("hidden");
         tableBody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-gray-500">No records found</td></tr>`;
         return;
     } else {
-        el("noHistory").classList.add("hidden");
+        if (noHistory) noHistory.classList.add("hidden");
     }
 
     data.forEach(item => {
@@ -375,14 +548,22 @@ window.openHistoryModal = async function (moveId) {
 // ==============================
 function formatDate(dateString) {
     if (!dateString) return "-";
-    const d = new Date(dateString);
-    return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    try {
+        const d = new Date(dateString);
+        return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    } catch (e) {
+        return "-";
+    }
 }
 
 function formatDateTime(dateString) {
     if (!dateString) return "-";
-    const d = new Date(dateString);
-    return `${d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+    try {
+        const d = new Date(dateString);
+        return `${d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+    } catch (e) {
+        return "-";
+    }
 }
 
 function getStatusBadge(id, name) {
@@ -400,7 +581,10 @@ function getStatusBadge(id, name) {
 
 function showToast(message, type = "info") {
     const container = el("toastContainer");
-    if (!container) return;
+    if (!container) {
+        console.log("Toast:", message);
+        return;
+    }
 
     const toast = document.createElement("div");
     const bgColor = type === "success" ? "bg-green-500" : type === "error" ? "bg-red-500" : "bg-blue-500";
