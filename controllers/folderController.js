@@ -83,7 +83,7 @@ exports.createFolder = async (req, res) => {
     
     // 🔹 Determine prefix based on logged-in user's email domain
     const userEmail = sessionUser.email || '';
-    const prefix = userEmail.endsWith('@infracity.com.my') ? 'SGV' : 'TSSB';
+    const prefix = userEmail.endsWith('@infracity.com.my') ? 'SGVSB' : 'TSSB';
     
     // 🔹 Generate serial number
     const serial_num = `${prefix}/${year}/${deptInitials}/${String(nextId).padStart(3, "0")}`;
