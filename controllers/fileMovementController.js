@@ -176,6 +176,9 @@ exports.getPendingMovements = async (req, res) => {
 // ============================
 // Get All File Movements
 // ============================
+// ============================
+// Get All File Movements
+// ============================
 exports.getFileMovements = async (req, res) => {
   const user = requireSession(req, res);
   if (!user) return;
@@ -184,18 +187,30 @@ exports.getFileMovements = async (req, res) => {
     let rows;
     if (["admin", "super_admin","HR"].includes(user.role)) {
       [rows] = await db1.query(`
-        SELECT fm.*, u.usr_name AS user_name, a.usr_name AS approved_by_name, s.status_name
+        SELECT fm.*, 
+               u.usr_name AS user_name, 
+               u.usr_dept AS department_id,
+               d.department AS department_name,
+               a.usr_name AS approved_by_name, 
+               s.status_name
         FROM file_movement fm
         LEFT JOIN infracit_sharedb.users u ON u.user_id = fm.user_id
+        LEFT JOIN infracit_sharedb.tref_department d ON d.department_id = u.usr_dept
         LEFT JOIN infracit_sharedb.users a ON a.user_id = fm.approve_by
         LEFT JOIN status s ON s.status_id = fm.status_id
         ORDER BY fm.move_id DESC
       `);
     } else {
       [rows] = await db1.query(`
-        SELECT fm.*, u.usr_name AS user_name, a.usr_name AS approved_by_name, s.status_name
+        SELECT fm.*, 
+               u.usr_name AS user_name, 
+               u.usr_dept AS department_id,
+               d.department AS department_name,
+               a.usr_name AS approved_by_name, 
+               s.status_name
         FROM file_movement fm
         LEFT JOIN infracit_sharedb.users u ON u.user_id = fm.user_id
+        LEFT JOIN infracit_sharedb.tref_department d ON d.department_id = u.usr_dept
         LEFT JOIN infracit_sharedb.users a ON a.user_id = fm.approve_by
         LEFT JOIN status s ON s.status_id = fm.status_id
         WHERE fm.user_id = ?
@@ -218,10 +233,11 @@ exports.getFileMovements = async (req, res) => {
 
     res.json(rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("❌ getFileMovements error:", err);
+    res.status(500).json({ error: "Internal server error", details: err.message });
   }
 };
+
 
 // ============================
 // Get File Movement by ID

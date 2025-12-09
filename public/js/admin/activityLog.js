@@ -53,6 +53,48 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
+
+// ============================
+// 🔹 Load Departments for Filter
+// ============================
+async function loadDepartments() {
+  try {
+    const res = await fetch("/api/departments", {
+      credentials: "include",
+      headers: { "Content-Type": "application/json" }
+    });
+
+    if (!res.ok) throw new Error("Failed to load departments");
+
+    const departments = await res.json();
+    console.log("✅ Departments loaded:", departments);
+
+    const filterDepartment = el("filterDepartment");
+    if (!filterDepartment) {
+      console.error("❌ filterDepartment element not found!");
+      return;
+    }
+
+    // Clear existing options except "All Departments"
+    filterDepartment.innerHTML = '<option value="">All Departments</option>';
+
+    // Populate department options
+    departments.forEach(dept => {
+      const option = document.createElement("option");
+      option.value = dept.department_id;
+      option.textContent = dept.department;
+      filterDepartment.appendChild(option);
+    });
+
+    console.log("✅ Department filter populated");
+
+  } catch (err) {
+    console.error("❌ Error loading departments:", err);
+    showToast("Failed to load departments", "error");
+  }
+}
+
+
 // ============================
 // 🔹 Helper Shortcut
 // ============================
@@ -186,6 +228,7 @@ async function initApp() {
   
   await loadCurrentUser();
   await loadRequests();
+    await loadDepartments(); 
   setupEventListeners();
   
   console.log("✅ App initialized!");
@@ -216,6 +259,7 @@ function setupEventListeners() {
   el("resetBtn")?.addEventListener("click", resetFilters);
   el("searchRequest")?.addEventListener("input", applyFilters);
   el("logoutBtn")?.addEventListener("click", handleLogout);
+   el("filterDepartment")?.addEventListener("change", applyFilters);
   
   const cancelBtn = el("cancelReject");
   const confirmBtn = el("confirmReject");
@@ -244,6 +288,8 @@ function setupEventListeners() {
   }
 }
 
+
+
 // ============================
 // 🔹 Load All File Movement Requests
 // ============================
@@ -270,6 +316,12 @@ async function loadRequests() {
     const data = await res.json();
     console.log("✅ Data received:", data);
     console.log("📊 Number of records:", data.length);
+
+       if (data.length > 0) {
+      console.log("🔍 First record sample:", data[0]);
+      console.log("🔍 Department ID:", data[0].department_id);
+      console.log("🔍 Department Name:", data[0].department_name);
+    }
 
     requestsData = data;
     originalData = [...data];
@@ -618,28 +670,67 @@ function updateStats(requests) {
 // 🔹 Apply Filters
 // ============================
 function applyFilters() {
+  console.log("🔍 === APPLYING FILTERS ===");
+  
   const statusFilter = el('filterStatus')?.value;
+  const departmentFilter = el('filterDepartment')?.value;
   const dateFilter = el('filterDate')?.value;
   const searchFilter = el('searchRequest')?.value.toLowerCase();
 
+  console.log("📊 Filter values:", {
+    status: statusFilter,
+    department: departmentFilter,
+    date: dateFilter,
+    search: searchFilter
+  });
+
+  console.log("📦 Original data count:", originalData.length);
   let filtered = [...originalData];
 
+  // Status filter
   if (statusFilter) {
+    const beforeCount = filtered.length;
     filtered = filtered.filter(r => {
       const statusConfig = STATUS_MAP[r.status_id];
       return statusConfig && statusConfig.value === statusFilter;
     });
+    console.log(`✅ Status filter: ${beforeCount} → ${filtered.length} records`);
   }
 
+  // Department filter
+  if (departmentFilter) {
+    const beforeCount = filtered.length;
+    console.log(`🏢 Filtering by department: ${departmentFilter}`);
+    
+    filtered = filtered.filter(r => {
+      const recordDept = r.department_id;
+      const filterDept = departmentFilter;
+      const match = recordDept == filterDept;
+      
+      // Log first 3 comparisons
+      if (beforeCount < 3 || filtered.indexOf(r) < 3) {
+        console.log(`  Record #${r.move_id}: dept=${recordDept}, filter=${filterDept}, match=${match}`);
+      }
+      
+      return match;
+    });
+    console.log(`✅ Department filter: ${beforeCount} → ${filtered.length} records`);
+  }
+
+  // Date filter
   if (dateFilter) {
+    const beforeCount = filtered.length;
     filtered = filtered.filter(r => {
       if (!r.move_date) return false;
       const moveDate = new Date(r.move_date).toISOString().split('T')[0];
       return moveDate === dateFilter;
     });
+    console.log(`✅ Date filter: ${beforeCount} → ${filtered.length} records`);
   }
 
+  // Search filter
   if (searchFilter) {
+    const beforeCount = filtered.length;
     filtered = filtered.filter(r => {
       const fileName = Array.isArray(r.files) 
         ? r.files.map(f => f.file_name).join(" ").toLowerCase()
@@ -649,7 +740,11 @@ function applyFilters() {
       
       return fileName.includes(searchFilter) || requestedBy.includes(searchFilter);
     });
+    console.log(`✅ Search filter: ${beforeCount} → ${filtered.length} records`);
   }
+
+  console.log(`📋 FINAL: ${filtered.length} records after all filters`);
+  console.log("🔍 === FILTER COMPLETE ===\n");
 
   renderTable(filtered);
   updateStats(filtered);
@@ -662,6 +757,7 @@ function resetFilters() {
   if (el('filterStatus')) el('filterStatus').value = '';
   if (el('filterDate')) el('filterDate').value = '';
   if (el('searchRequest')) el('searchRequest').value = '';
+    if (el('filterDepartment')) el('filterDepartment').value = '';
   
   renderTable(originalData);
   updateStats(originalData);

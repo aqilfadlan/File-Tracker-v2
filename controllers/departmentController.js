@@ -101,3 +101,18 @@ exports.deleteDepartment = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+// =========================
+// GET all departments
+// =========================
+exports.getAllDepartments = async (req, res) => {
+  try {
+    const [results] = await db2.query(
+      "SELECT department_id, department FROM tref_department ORDER BY department ASC"
+    );
+    res.json(results);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
