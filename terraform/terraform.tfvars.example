@@ -1,0 +1,40 @@
+# Example Terraform Variables Configuration
+# Copy this file to terraform.tfvars and fill in your values
+
+# AWS Configuration
+aws_region  = "us-east-1"
+environment = "development"
+
+# Project Configuration
+project_name = "file-tracker-v2"
+timezone     = "UTC" # or "Asia/Kuala_Lumpur", etc.
+
+# Network Configuration
+vpc_cidr             = "10.0.0.0/16"
+public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24"]
+private_subnet_cidrs = ["10.0.11.0/24", "10.0.12.0/24"]
+database_subnet_cidrs = ["10.0.21.0/24", "10.0.22.0/24"]
+
+# Security Configuration
+# IMPORTANT: Change this to your IP address for production!
+# Get your IP: curl ifconfig.me
+allowed_ssh_cidrs = ["0.0.0.0/0"] # ["YOUR_IP/32"]
+
+# SSH Key Configuration
+# Generate key pair: ssh-keygen -t rsa -b 4096 -f ~/.ssh/file-tracker-v2-key
+# Then paste the content of ~/.ssh/file-tracker-v2-key.pub here
+ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC... your-public-key-here"
+
+# EC2 Instance Types
+jumphost_instance_type = "t3.micro"  # 1 vCPU, 1GB RAM - Free tier eligible
+app_instance_type      = "t3.small"  # 2 vCPU, 2GB RAM
+
+# RDS Database Configuration
+db_instance_class     = "db.t3.micro"  # Free tier eligible
+db_allocated_storage  = 20             # GB
+db_name               = "filetracker"
+db_master_username    = "admin"
+db_master_password    = "ChangeMe123456!" # CHANGE THIS!
+
+# Optional: SSL Certificate ARN (for HTTPS)
+# ssl_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/xxxxx"
