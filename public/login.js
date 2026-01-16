@@ -30,6 +30,12 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      // 🔥 SAVE USER DATA TO LOCALSTORAGE BEFORE REDIRECT
+      if (data.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+        console.log('✅ User data saved to localStorage:', data.user);
+      }
+
       const role = data.user?.role;
 
       // 🎯 CLEAN, CORRECT REDIRECT BLOCK
