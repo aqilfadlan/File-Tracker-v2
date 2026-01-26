@@ -18,7 +18,7 @@ async function generateFolderQRUrl(folder_id) {
   const qrDir = path.join(__dirname, "../public/qrcodes");
   if (!fs.existsSync(qrDir)) fs.mkdirSync(qrDir, { recursive: true });
 
-  const qrFilename = `folder_${folder_id}_${Date.now()}.png`;
+  const qrFilename = `folder_${folder_id}.png`;
   const qrPath = path.join(qrDir, qrFilename);
 
   await QRCode.toFile(qrPath, folderUrl, {
@@ -30,6 +30,42 @@ async function generateFolderQRUrl(folder_id) {
 
   return `/qrcodes/${qrFilename}`;
 }
+
+async function ensureFolderQRCode(folder) {
+  const qrDir = path.join(__dirname, "../public/qrcodes");
+  const qrFilename = `folder_${folder.folder_id}.png`;
+  const expectedPath = `/qrcodes/${qrFilename}`;
+  const expectedFile = path.join(__dirname, "../public", expectedPath);
+
+  // Ensure directory exists
+  if (!fs.existsSync(qrDir)) {
+    fs.mkdirSync(qrDir, { recursive: true });
+  }
+
+  // Case 1: No QR in DB
+  if (!folder.qr_code) {
+    console.log("🔁 QR missing in DB, generating:", folder.folder_id);
+    const newQr = await generateFolderQRUrl(folder.folder_id);
+    await db1.query(
+      "UPDATE folder SET qr_code = ? WHERE folder_id = ?",
+      [newQr, folder.folder_id]
+    );
+    folder.qr_code = newQr;
+    return;
+  }
+
+  // Case 2: QR file missing
+  if (!fs.existsSync(expectedFile)) {
+    console.log("🔁 QR file missing, regenerating:", folder.folder_id);
+    const newQr = await generateFolderQRUrl(folder.folder_id);
+    await db1.query(
+      "UPDATE folder SET qr_code = ? WHERE folder_id = ?",
+      [newQr, folder.folder_id]
+    );
+    folder.qr_code = newQr;
+  }
+}
+
 
 // =====================================
 // CREATE FOLDER
@@ -340,6 +376,7 @@ exports.getFolder = async (req, res) => {
         f.folder_id,
         f.folder_name,
         f.serial_num,
+        f.qr_code,
         f.created_at,
         f.department_id,
         f.location_id,
@@ -366,6 +403,7 @@ exports.getFolder = async (req, res) => {
 
     // Add files inside each folder
     for (const folder of folders) {
+      await ensureFolderQRCode(folder);
       const [files] = await db1.query(
         `SELECT fi.file_id, fi.file_name
          FROM folder_files ff
@@ -519,6 +557,7 @@ exports.getLatestFolder = async (req, res) => {
     }
 
     const folder = rows[0];
+    await ensureFolderQRCode(folder);
 
     // 🔹 Get files inside this folder
     const [files] = await db1.query(
