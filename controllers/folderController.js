@@ -5,6 +5,7 @@ const path = require("path");
 const fs = require("fs");
 const QRCode = require("qrcode");
 const { db1, db2 } = require("../db");
+const { fetchUsersMap, fetchDepartmentsMap } = require("../helpers/dbHelpers");
 
 // =====================================
 // HELPER: Generate QR Code
@@ -327,17 +328,23 @@ exports.viewFolderPage = async (req, res) => {
     // Get folder info
     const [[folder]] = await db1.query(
       `SELECT f.folder_id, f.folder_name, f.serial_num, f.qr_code,
-              f.created_at, f.department_id, f.location_id,
-              d.department, l.location_name, u.usr_name AS created_by
+              f.created_at, f.department_id, f.location_id, f.user_id,
+              l.location_name
        FROM folder f
-       LEFT JOIN infracit_sharedb.tref_department d ON f.department_id = d.department_id
        LEFT JOIN locations l ON f.location_id = l.location_id
-       LEFT JOIN infracit_sharedb.users u ON f.user_id = u.user_id
        WHERE f.folder_id = ?`,
       [folder_id]
     );
 
     if (!folder) return res.status(404).send("Folder not found");
+
+    // Fetch department and user from remote db2
+    const [deptMap, userMap] = await Promise.all([
+      fetchDepartmentsMap([folder.department_id]),
+      fetchUsersMap([folder.user_id])
+    ]);
+    folder.department = deptMap.get(folder.department_id)?.department || null;
+    folder.created_by = userMap.get(folder.user_id)?.usr_name || null;
 
     // Get files inside folder
 const [files] = await db1.query(`
@@ -372,7 +379,7 @@ exports.getFolder = async (req, res) => {
     if (!sessionUser) return res.status(401).json({ error: "Unauthorized" });
 
     let query = `
-      SELECT 
+      SELECT
         f.folder_id,
         f.folder_name,
         f.serial_num,
@@ -380,13 +387,10 @@ exports.getFolder = async (req, res) => {
         f.created_at,
         f.department_id,
         f.location_id,
-        d.department,
-        l.location_name,
-        u.usr_name AS created_by
+        f.user_id,
+        l.location_name
       FROM folder f
-      LEFT JOIN infracit_sharedb.tref_department d ON f.department_id = d.department_id
       LEFT JOIN locations l ON f.location_id = l.location_id
-      LEFT JOIN infracit_sharedb.users u ON f.user_id = u.user_id
     `;
 
     const params = [];
@@ -400,6 +404,18 @@ exports.getFolder = async (req, res) => {
     query += " ORDER BY f.folder_id DESC";
 
     const [folders] = await db1.query(query, params);
+
+    // Fetch departments and users from remote db2
+    const deptIds = folders.map(f => f.department_id);
+    const userIds = folders.map(f => f.user_id);
+    const [deptMap, userMap] = await Promise.all([
+      fetchDepartmentsMap(deptIds),
+      fetchUsersMap(userIds)
+    ]);
+    for (const folder of folders) {
+      folder.department = deptMap.get(folder.department_id)?.department || null;
+      folder.created_by = userMap.get(folder.user_id)?.usr_name || null;
+    }
 
     // Add files inside each folder
     for (const folder of folders) {
@@ -434,17 +450,23 @@ exports.getFolderById = async (req, res) => {
   try {
     const [[folder]] = await db1.query(
       `SELECT f.folder_id, f.folder_name, f.serial_num, f.qr_code,
-              f.created_at, f.department_id, f.location_id, 
-              d.department, l.location_name, u.usr_name AS created_by
+              f.created_at, f.department_id, f.location_id, f.user_id,
+              l.location_name
        FROM folder f
-       LEFT JOIN infracit_sharedb.tref_department d ON f.department_id = d.department_id
        LEFT JOIN locations l ON f.location_id = l.location_id
-       LEFT JOIN infracit_sharedb.users u ON f.user_id = u.user_id
        WHERE f.folder_id = ?`,
       [folder_id]
     );
 
     if (!folder) return res.status(404).json({ error: "Folder not found" });
+
+    // Fetch department and user from remote db2
+    const [deptMap, userMap] = await Promise.all([
+      fetchDepartmentsMap([folder.department_id]),
+      fetchUsersMap([folder.user_id])
+    ]);
+    folder.department = deptMap.get(folder.department_id)?.department || null;
+    folder.created_by = userMap.get(folder.user_id)?.usr_name || null;
 
     const [files] = await db1.query(
       `SELECT fi.file_id, fi.file_name 
@@ -535,19 +557,17 @@ exports.deleteFolder = async (req, res) => {
 exports.getLatestFolder = async (req, res) => {
   try {
     const [rows] = await db1.query(`
-      SELECT 
+      SELECT
         f.folder_id,
         f.folder_name AS folder_title,
         f.serial_num AS serial_number,
         f.qr_code,
         f.created_at,
-        u.usr_name AS created_by,
-        d.department AS department,
+        f.department_id,
+        f.user_id,
         l.location_name AS location
       FROM folder f
-      LEFT JOIN infracit_sharedb.tref_department d ON f.department_id = d.department_id
       LEFT JOIN locations l ON f.location_id = l.location_id
-      LEFT JOIN infracit_sharedb.users u ON f.user_id = u.user_id
       ORDER BY f.folder_id DESC
       LIMIT 1
     `);
@@ -557,6 +577,15 @@ exports.getLatestFolder = async (req, res) => {
     }
 
     const folder = rows[0];
+
+    // Fetch department and user from remote db2
+    const [deptMap, userMap] = await Promise.all([
+      fetchDepartmentsMap([folder.department_id]),
+      fetchUsersMap([folder.user_id])
+    ]);
+    folder.department = deptMap.get(folder.department_id)?.department || null;
+    folder.created_by = userMap.get(folder.user_id)?.usr_name || null;
+
     await ensureFolderQRCode(folder);
 
     // 🔹 Get files inside this folder

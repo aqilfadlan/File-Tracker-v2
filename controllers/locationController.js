@@ -1,4 +1,5 @@
 const { db1 } = require("../db");
+const { fetchUsersMap, fetchDepartmentsMap } = require("../helpers/dbHelpers");
 
 // ✅ CREATE LOCATION
 exports.createLocation = async (req, res) => {
@@ -113,18 +114,19 @@ exports.getLocationsWithFolders = async (req, res) => {
     );
 
     // 2️⃣ For each location, get folders
+    const allDeptIds = [];
+    const allUserIds = [];
+
     for (const loc of locations) {
       let query = `
-        SELECT 
+        SELECT
           f.folder_id,
           f.folder_name,
           f.serial_num,
-          d.department,
-          u.usr_name AS created_by,
+          f.department_id,
+          f.user_id,
           f.created_at
         FROM folder f
-        LEFT JOIN infracit_sharedb.tref_department d ON f.department_id = d.department_id
-        LEFT JOIN infracit_sharedb.users u ON f.user_id = u.user_id
         WHERE f.location_id = ?
       `;
       const params = [loc.location_id];
@@ -139,8 +141,26 @@ exports.getLocationsWithFolders = async (req, res) => {
 
       const [folders] = await db1.query(query, params);
 
-      // Add files to each folder
       for (const folder of folders) {
+        if (folder.department_id) allDeptIds.push(folder.department_id);
+        if (folder.user_id) allUserIds.push(folder.user_id);
+      }
+
+      loc.folders = folders;
+    }
+
+    // Batch fetch departments and users from remote db2
+    const [deptMap, userMap] = await Promise.all([
+      fetchDepartmentsMap(allDeptIds),
+      fetchUsersMap(allUserIds)
+    ]);
+
+    // Map names back and add files to each folder
+    for (const loc of locations) {
+      for (const folder of loc.folders) {
+        folder.department = deptMap.get(folder.department_id)?.department || null;
+        folder.created_by = userMap.get(folder.user_id)?.usr_name || null;
+
         const [files] = await db1.query(
           `SELECT fi.file_id, fi.file_name
            FROM folder_files ff
@@ -151,8 +171,6 @@ exports.getLocationsWithFolders = async (req, res) => {
         folder.files_inside = files.map(f => f.file_name);
         folder.file_ids = files.map(f => f.file_id);
       }
-
-      loc.folders = folders; // attach folders to location
     }
 
     res.json(locations);

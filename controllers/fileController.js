@@ -1,5 +1,6 @@
 const { db1 } = require("../db");
 const QRCode = require("qrcode");
+const { fetchUsersMap } = require("../helpers/dbHelpers");
 
 // =========================
 // GET all files (or by folder_id)
@@ -7,33 +8,38 @@ const QRCode = require("qrcode");
 exports.getAllFiles = async (req, res) => {
   try {
     const query = `
-        SELECT 
+        SELECT
           fm.move_id,
           fm.user_id,
-          u.usr_name AS user_name,
+          fm.approve_by,
           fm.move_date,
           fm.status_id,
           fm.approved_at,
-          a.usr_name AS approved_by_name,
 
           JSON_ARRAYAGG(
             JSON_OBJECT(
               'file_name', fl.file_name
             )
           ) AS files
-          
+
         FROM file_movement fm
-        LEFT JOIN infracit_sharedb.users u ON u.user_id = fm.user_id
-        LEFT JOIN infracit_sharedb.users a ON a.user_id = fm.approve_by
         LEFT JOIN file_movement_files f ON f.move_id = fm.move_id
-        LEFT JOIN file fl ON fl.file_id = f.file_id   
+        LEFT JOIN file fl ON fl.file_id = f.file_id
 
         GROUP BY fm.move_id
         ORDER BY fm.move_id DESC;
       `;
 
-
     const [rows] = await db1.query(query);
+
+    // Fetch user names from remote db2
+    const userIds = rows.flatMap(r => [r.user_id, r.approve_by]);
+    const userMap = await fetchUsersMap(userIds);
+    for (const row of rows) {
+      row.user_name = userMap.get(row.user_id)?.usr_name || null;
+      row.approved_by_name = userMap.get(row.approve_by)?.usr_name || null;
+    }
+
     res.json(rows);
 
   } catch (err) {
@@ -129,20 +135,24 @@ exports.getFileById = async (req, res) => {
   const { id } = req.params;
   try {
     const [results] = await db1.query(`
-      SELECT 
+      SELECT
         f.file_id,
         f.file_name,
         f.uploaded_at,
-        u.usr_name AS created_by,
+        f.user_id,
         fo.folder_name
       FROM file f
-      LEFT JOIN infracit_sharedb.users u ON f.user_id = u.user_id
       LEFT JOIN folder_files ff ON f.file_id = ff.file_id
       LEFT JOIN folder fo ON ff.folder_id = fo.folder_id
       WHERE f.file_id = ?
     `, [id]);
 
     if (!results.length) return res.status(404).json({ message: "File not found" });
+
+    // Fetch user name from remote db2
+    const userMap = await fetchUsersMap([results[0].user_id]);
+    results[0].created_by = userMap.get(results[0].user_id)?.usr_name || null;
+
     res.json(results[0]);
   } catch (err) {
     console.error("❌ Error fetching file by ID:", err);
@@ -311,14 +321,19 @@ exports.searchFiles = async (req, res) => {
 
   try {
     const [results] = await db1.query(`
-      SELECT f.file_id, f.file_name, f.uploaded_at, u.usr_name AS created_by, fo.folder_name
+      SELECT f.file_id, f.file_name, f.uploaded_at, f.user_id, fo.folder_name
       FROM file f
-      LEFT JOIN infracit_sharedb.users u ON f.user_id = u.user_id
       LEFT JOIN folder_files ff ON f.file_id = ff.file_id
       LEFT JOIN folder fo ON ff.folder_id = fo.folder_id
       WHERE f.file_name LIKE ?
       ORDER BY f.file_id DESC
     `, [`%${keyword}%`]);
+
+    // Fetch user names from remote db2
+    const userMap = await fetchUsersMap(results.map(r => r.user_id));
+    for (const row of results) {
+      row.created_by = userMap.get(row.user_id)?.usr_name || null;
+    }
 
     res.json(results);
   } catch (err) {

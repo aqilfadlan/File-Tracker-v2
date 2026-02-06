@@ -1,5 +1,6 @@
 // controllers/fileMovementController.js
 const { db1, db2 } = require("../db");
+const { fetchUsersMap, fetchDepartmentsMap } = require("../helpers/dbHelpers");
 
 // ============================
 // Helper: Check Session
@@ -136,7 +137,7 @@ exports.getFoldersByDepartment = async (req, res) => {
   if (!userDept) return res.status(400).json({ error: "No department assigned" });
 
   try {
-    const [folders] = await db2.query(
+    const [folders] = await db1.query(
       "SELECT folder_id, folder_name FROM folder WHERE department_id = ?",
       [userDept]
     );
@@ -152,13 +153,17 @@ exports.getFoldersByDepartment = async (req, res) => {
 // ============================
 exports.getPendingMovements = async (req, res) => {
   const [rows] = await db1.query(`
-    SELECT fm.move_id, fm.move_type, fm.move_date,
-           u.usr_name AS moved_by_name
+    SELECT fm.move_id, fm.move_type, fm.move_date, fm.user_id
     FROM file_movement fm
-    JOIN infracit_sharedb.users u ON u.user_id = fm.user_id
     WHERE fm.status_id = 1
     ORDER BY fm.move_date DESC
   `);
+
+  // Fetch user names from remote db2
+  const userMap = await fetchUsersMap(rows.map(r => r.user_id));
+  for (const r of rows) {
+    r.moved_by_name = userMap.get(r.user_id)?.usr_name || null;
+  }
 
   for (const r of rows) {
     const [files] = await db1.query(`
@@ -187,35 +192,37 @@ exports.getFileMovements = async (req, res) => {
     let rows;
     if (["admin", "super_admin","HR"].includes(user.role)) {
       [rows] = await db1.query(`
-        SELECT fm.*, 
-               u.usr_name AS user_name, 
-               u.usr_dept AS department_id,
-               d.department AS department_name,
-               a.usr_name AS approved_by_name, 
-               s.status_name
+        SELECT fm.*, s.status_name
         FROM file_movement fm
-        LEFT JOIN infracit_sharedb.users u ON u.user_id = fm.user_id
-        LEFT JOIN infracit_sharedb.tref_department d ON d.department_id = u.usr_dept
-        LEFT JOIN infracit_sharedb.users a ON a.user_id = fm.approve_by
         LEFT JOIN status s ON s.status_id = fm.status_id
         ORDER BY fm.move_id DESC
       `);
     } else {
       [rows] = await db1.query(`
-        SELECT fm.*, 
-               u.usr_name AS user_name, 
-               u.usr_dept AS department_id,
-               d.department AS department_name,
-               a.usr_name AS approved_by_name, 
-               s.status_name
+        SELECT fm.*, s.status_name
         FROM file_movement fm
-        LEFT JOIN infracit_sharedb.users u ON u.user_id = fm.user_id
-        LEFT JOIN infracit_sharedb.tref_department d ON d.department_id = u.usr_dept
-        LEFT JOIN infracit_sharedb.users a ON a.user_id = fm.approve_by
         LEFT JOIN status s ON s.status_id = fm.status_id
         WHERE fm.user_id = ?
         ORDER BY fm.move_id DESC
       `, [user.id]);
+    }
+
+    // Fetch users and departments from remote db2
+    const userIds = rows.flatMap(r => [r.user_id, r.approve_by]);
+    const userMap = await fetchUsersMap(userIds);
+
+    const deptIds = [];
+    for (const r of rows) {
+      const user_record = userMap.get(r.user_id);
+      r.user_name = user_record?.usr_name || null;
+      r.department_id = user_record?.usr_dept || null;
+      if (user_record?.usr_dept) deptIds.push(user_record.usr_dept);
+      r.approved_by_name = userMap.get(r.approve_by)?.usr_name || null;
+    }
+
+    const deptMap = await fetchDepartmentsMap(deptIds);
+    for (const r of rows) {
+      r.department_name = deptMap.get(r.department_id)?.department || null;
     }
 
     for (const r of rows) {
@@ -245,10 +252,8 @@ exports.getFileMovements = async (req, res) => {
 exports.getFileMovementById = async (req, res) => {
   const { move_id } = req.params;
   const [rows] = await db1.query(`
-    SELECT fm.*, u.usr_name AS moved_by_name, a.usr_name AS approved_by_name, s.status_name
+    SELECT fm.*, s.status_name
     FROM file_movement fm
-    LEFT JOIN infracit_sharedb.users u ON u.user_id = fm.user_id
-    LEFT JOIN infracit_sharedb.users a ON a.user_id = fm.approve_by
     LEFT JOIN status s ON s.status_id = fm.status_id
     WHERE fm.move_id = ?
   `, [move_id]);
@@ -256,6 +261,11 @@ exports.getFileMovementById = async (req, res) => {
   if (rows.length === 0) return res.status(404).json({ error: "File movement not found" });
 
   const movement = rows[0];
+
+  // Fetch user names from remote db2
+  const userMap = await fetchUsersMap([movement.user_id, movement.approve_by]);
+  movement.moved_by_name = userMap.get(movement.user_id)?.usr_name || null;
+  movement.approved_by_name = userMap.get(movement.approve_by)?.usr_name || null;
   const [files] = await db1.query(`
     SELECT f.file_id, f.file_name, fol.folder_id, fol.folder_name
     FROM file_movement_files mm
@@ -343,14 +353,20 @@ exports.getMyRequests = async (req, res) => {
   if (!user) return;
 
   const [rows] = await db1.query(`
-    SELECT fm.*, u.usr_name AS user_name, a.usr_name AS approved_by_name, s.status_name
+    SELECT fm.*, s.status_name
     FROM file_movement fm
-    LEFT JOIN infracit_sharedb.users u ON u.user_id = fm.user_id
-    LEFT JOIN infracit_sharedb.users a ON a.user_id = fm.approve_by
     LEFT JOIN status s ON s.status_id = fm.status_id
     WHERE fm.user_id = ?
     ORDER BY fm.move_id DESC
   `, [user.id]);
+
+  // Fetch user names from remote db2
+  const userIds = rows.flatMap(r => [r.user_id, r.approve_by]);
+  const userMap = await fetchUsersMap(userIds);
+  for (const r of rows) {
+    r.user_name = userMap.get(r.user_id)?.usr_name || null;
+    r.approved_by_name = userMap.get(r.approve_by)?.usr_name || null;
+  }
 
   for (const r of rows) {
     const [files] = await db1.query(`
@@ -373,12 +389,17 @@ exports.getMyNotifications = async (req, res) => {
   if (!user) return;
 
   const [rows] = await db1.query(`
-    SELECT fm.*, u.usr_name AS user_name
+    SELECT fm.*
     FROM file_movement fm
-    LEFT JOIN infracit_sharedb.users u ON u.user_id = fm.user_id
     WHERE fm.user_id = ? AND fm.status_id IN (2,3)
     ORDER BY fm.move_date DESC
   `, [user.id]);
+
+  // Fetch user names from remote db2
+  const userMap = await fetchUsersMap(rows.map(r => r.user_id));
+  for (const r of rows) {
+    r.user_name = userMap.get(r.user_id)?.usr_name || null;
+  }
 
   for (const r of rows) {
     const [files] = await db1.query(`
